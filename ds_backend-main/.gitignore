@@ -1,0 +1,11 @@
+venv/
+
+pgdb/
+media/
+db.sqlite3
+*.pyc
+.DS_Store
+migrations/*.py
+__pycache__/
+.venv/
+.idea/

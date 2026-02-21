@@ -1,0 +1,258 @@
+.editor {
+  // editor parent class
+  .draggable-component {
+    // draggable component parent div class name
+    .box {
+      height: 500px;
+      max-width: 1050px;
+      min-width: 890px;
+      position: relative;
+      overflow: auto;
+      padding: 0;
+      border: 1px solid #ababab;
+      border-radius: 3px;
+
+      .box-container {
+        transform-origin: left top;
+        width: 100%;
+        height: 100%;
+
+        .rnd {
+          position: relative;
+
+          .cancel {
+            position: absolute;
+            top: 1px;
+            right: 5px;
+            cursor: pointer;
+            width: 15px;
+            height: 15px;
+            border-radius: 2px;
+            padding: 3px;
+            background: #ff8383;
+
+            img {
+              width: 60%;
+              position: absolute;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .properties {
+    border: 1px solid #ababab;
+    border-radius: 8px;
+    background-color: white;
+    padding: 10px 0;
+
+    .title {
+      text-align: center;
+      font-weight: 600;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #ababab;
+    }
+
+    .color {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border-radius: 10px;
+    }
+
+    .items {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+  }
+
+  .slides__container {
+    border: 1px solid #ababab;
+    border-radius: 8px;
+    margin-top: 20px;
+    padding: 10px;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+  }
+  .slides {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    max-width: 100%;
+    overflow-y: auto;
+
+    .slide {
+      width: 140px;
+      height: 100px;
+      border-radius: 5px;
+      position: relative;
+      background-color: #efefef;
+      margin-right: 10px;
+      cursor: pointer;
+
+      z-index: 0;
+
+      .slide-inner {
+        width: 100%;
+        height: 100%;
+        background-color: rgba(100, 99, 99, 0.22);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+
+        &.active {
+          background-color: transparent;
+        }
+      }
+
+      span.duration {
+        text-shadow: 1px 1px 10px gray;
+        padding: 25px;
+        //background-color: red;
+      }
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+      }
+
+      .close {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        cursor: pointer;
+        z-index: 10;
+      }
+    }
+
+    button {
+      margin-left: 10px;
+      flex-shrink: 0;
+    }
+  }
+
+  .dangerously-div {
+    border: 1px solid #d5d2d2;
+    padding: 5px;
+    border-radius: 4px;
+    min-height: 40px;
+    cursor: pointer;
+    overflow-x: auto;
+  }
+}
+
+.image-crop {
+  width: 100px;
+  height: 100px;
+  border: 1px solid #e3e2e2;
+  border-radius: 5px;
+  margin-left: 6px;
+  position: relative;
+  z-index: 0;
+  cursor: pointer;
+
+  .image-crop-inner-div {
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+
+    &::before {
+      content: "";
+      width: 100%;
+      height: 100%;
+      background-color: #000000;
+      opacity: 0.3;
+      position: absolute;
+      z-index: 2;
+    }
+  }
+
+  img,
+  video {
+    width: 100%;
+    height: 100%;
+    border-radius: 5px;
+    object-fit: cover;
+  }
+
+  .cancel {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 11px;
+    height: 11px;
+    z-index: 3;
+    cursor: pointer;
+  }
+
+  .selected {
+    position: absolute;
+    top: 40%;
+    left: 45%;
+    color: white;
+    z-index: 3;
+
+    img {
+      width: 15px;
+      height: 10px;
+    }
+  }
+}
+
+.ant-upload-list.ant-upload-list-text {
+  display: none;
+}
+
+.ck.ck-reset.ck-dropdown__panel.ck-dropdown__panel_se {
+  max-height: 200px !important;
+  overflow-y: auto;
+
+  .ck.ck-button__label {
+    font-size: 15px !important;
+  }
+}
+
+.draggable-table {
+  width: 100%;
+  height: 100%;
+  background-color: transparent;
+  // background-image: url("../images/table-background.svg");
+  background-position: center;
+  background-repeat: no-repeat;
+  // background-size: cover;
+  // background-color: white;
+  // padding: 47px;
+
+  table {
+    border-spacing: 0;
+    // margin: auto;
+
+    th {
+      p {
+        line-height: 42px;
+        padding: 24px 0px;
+      }
+    }
+    td {
+      p {
+        line-height: 32px;
+        padding-top: 11px;
+        padding-bottom: 11px;
+      }
+    }
+
+    &,
+    th,
+    td {
+      border: 1px solid #ffa102;
+    }
+  }
+
+  .active-cell {
+    border: 2px solid green !important;
+  }
+}

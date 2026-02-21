@@ -1,0 +1,60 @@
+$main-color: #183952 !important;
+$menu-item-selected: #3c596d !important;
+.ant-layout-sider {
+  background-color: $main-color;
+}
+.active {
+  background-color: transparent;
+}
+.ant-menu {
+  background-color: $main-color;
+
+  .ant-menu-item-selected {
+    background-color: $menu-item-selected;
+  }
+}
+.ant-btn-success {
+  background-color: #6ac17a !important;
+  color: white !important;
+}
+.ant-btn-danger {
+  background-color: #fc5543 !important;
+  color: white !important;
+}
+.ant-btn-gray {
+  background-color: $main-color;
+  color: white !important;
+}
+.ant-layout-sider-collapsed {
+  max-width: 75px !important;
+  min-width: 75px !important;
+}
+.ant-modal-header {
+  background-color: #183952 !important;
+  .ant-modal-title {
+    text-align: center;
+    color: white;
+  }
+}
+.ant-modal-close-x {
+  color: white;
+}
+.App {
+  .logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-bottom: 1px solid rgba(255,255,255,0.15);
+    margin-bottom: 20px;
+    height: 70px;
+    padding: 0 16px;
+    img {
+      transition: 0.5s;
+      width: 100%;
+      max-width: 160px;
+      height: auto;
+      object-fit: contain;
+      filter: brightness(0) invert(1);
+    }
+  }
+}

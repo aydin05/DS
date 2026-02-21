@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="description" content="Tizen Download API Demo" />
+    <title>Qmeter DS</title>
+    <style>
+        body {
+            background-color: black !important;
+            margin: 0px !important;
+        }
+        
+        table {
+            border-spacing: 0;
+            margin: auto;
+            border-collapse: collapse;
+        }
+        
+        table th p {
+            line-height: 42px;
+            padding: 24px 100px;
+        }
+        
+        table td p {
+            line-height: 32px;
+            padding-top: 11px;
+            padding-bottom: 11px;
+        }
+        
+        #content-wrap {
+            transition: opacity 0.3s ease-in-out;
+            opacity: 1;
+        }
+        
+        /* Progress bar styles */
+        .progress-container {
+            margin-top: 30px;
+            width: 80%;
+            max-width: 500px;
+        }
+        
+        .progress-bar-wrapper {
+            width: 100%;
+            background-color: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            height: 30px;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        
+        .progress-text {
+            position: absolute;
+            width: 100%;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
+            z-index: 1;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        
+        .progress-label {
+            color: #aaa;
+            font-size: 14px;
+            margin-bottom: 5px;
+            font-family: sans-serif;
+        }
+        
+        .file-info {
+            color: #888;
+            font-size: 12px;
+            margin-top: 10px;
+            font-family: sans-serif;
+            text-align: center;
+        }
+        
+        .spinner {
+            border: 4px solid #333;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    <link rel="stylesheet" type="text/css" href="css/style.css" />
+    <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
+    <script src="js/jquery.js"></script>
+    <script src="js/logger.js"></script>
+    <script src="js/slider.js"></script>
+    <script src="js/controller.js"></script>
+    <script src="js/main.js"></script>
+</head>
+<body>
+    <div id="cred-form">
+        <div id="cred-page">
+            <div id="cred-card">
+                <img src="images/qmeter-logo.svg" alt="Qmeter" id="cred-logo" />
+                <p id="cred-subtitle">Digital Signage</p>
+                <div id="cred-fields">
+                    <label class="cred-label" for="server">Server URL</label>
+                    <input id="server" name="server" type="text" placeholder="https://aydin.technolink.az" required />
+                    <label class="cred-label" for="username">Username</label>
+                    <input id="username" name="username" type="text" placeholder="Enter username" required />
+                    <label class="cred-label" for="password">Password</label>
+                    <input id="password" name="password" type="password" placeholder="Enter password" required />
+                </div>
+                <button id="login-btn" type="button">Sign In</button>
+                <div id="cred-error"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="loading-overlay" style="
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.9);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 99999;
+        flex-direction: column;
+        font-family: sans-serif;
+    ">
+        <div class="spinner"></div>
+        <div id="loading_text" style="margin-top: 20px; color: white; font-size: 20px">
+            Məlumatlar yüklənir...
+        </div>
+        
+        <!-- Progress indicators -->
+        <div class="progress-container" id="progress-container" style="display: none;">
+            <!-- Overall progress -->
+            <div class="progress-label">Ümumi yükləmə:</div>
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar" id="overall-progress">
+                    <span class="progress-text" id="overall-progress-text">0%</span>
+                </div>
+            </div>
+            
+            <!-- Current file progress -->
+            <div class="progress-label">Cari fayl:</div>
+            <div class="progress-bar-wrapper">
+                <div class="progress-bar" id="file-progress">
+                    <span class="progress-text" id="file-progress-text">0%</span>
+                </div>
+            </div>
+            
+            <!-- File info -->
+            <div class="file-info" id="file-info">
+                Fayl: <span id="current-file-number">0</span> / <span id="total-files">0</span>
+                <br>
+                <span id="current-file-name"></span>
+            </div>
+        </div>
+    </div>
+    
+    <div id="red-indicator"></div>
+    <div id="content-wrap"></div>
+</body>
+</html>

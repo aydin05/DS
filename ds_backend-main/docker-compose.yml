@@ -1,0 +1,45 @@
+
+version: '3.1'
+
+services: 
+    postgres:
+        image: postgres:11
+        restart: always
+        volumes:
+            - ./pgdb/:/var/lib/postgresql/
+        ports:
+            - "5432:5432"
+        env_file: .env
+
+
+    web:
+        container_name: dsqmeter
+        build: .
+        restart: "always"
+        command: ["supervisord", "-c", "/code/supervisord.conf"]
+        environment:
+            - VIRTUAL_HOST=116.203.187.99
+            - VIRTUAL_PROTO=http
+            - CERT_NAME=kapitalbank_az
+            - VIRTUAL_PORT=8000
+            - TIMEOUT=300
+            - HTTP_PORT=8000
+            - STATS_PORT=8001
+            - LANG=C.UTF-8
+            - LANG=en_US.UTF-8
+            - LANGUAGE=en_US:en
+            - LC_ALL=en_US.UTF-8
+        ports:
+            - "8000:8000"
+        volumes:
+            - .:/code/
+            - ./static/:/code/static
+            - ./media/:/code/media
+        depends_on:
+            - "postgres"
+        env_file: .env
+
+networks:
+    default:
+        external:
+            name: nginx-proxy
