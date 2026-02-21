@@ -4,7 +4,7 @@ services:
         image: postgres:16
         restart: always
         volumes:
-            - ./pgdb/:/var/lib/postgresql/
+            - ./pgdb/:/var/lib/postgresql/data/
         ports:
             - "5432:5432"
         env_file: .env

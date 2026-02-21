@@ -43,7 +43,7 @@ class UserBelongsToCompanyPermission:
                 self.permission_denied(
                     request, message=self.user_belong_to_company_error_message
                 )
-        except:
+        except Exception:
             self.permission_denied(
                 request, message=self.user_belong_to_company_error_message
             )
@@ -115,7 +115,7 @@ class CompanyUserViewSet(MultiSerializerViewSet):
 
 class GroupApiView(ListAPIView):
     serializer_class = GroupSerializer
-    queryset = Permission.objects.all()
+    queryset = Group.objects.all()
     pagination_class = None
 
     def get_queryset(self):

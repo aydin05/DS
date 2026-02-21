@@ -25,13 +25,12 @@ def generate_video_duration(sender, instance, created, **kwargs):
                 if result.returncode == 0:
                     probe = json.loads(result.stdout)
                     duration = float(probe.get('format', {}).get('duration', 10))
-                    instance.duration = int(duration)
+                    dur = int(duration) or 10
                 else:
-                    instance.duration = 10
-                instance.save()
+                    dur = 10
+                CompanyFile.objects.filter(pk=instance.pk).update(duration=dur)
             except Exception as e:
                 import logging
                 logging.getLogger(__name__).warning(f"Failed to get video duration: {file_path}. Error: {e}")
         else:
-            instance.duration = 10
-            instance.save()
+            CompanyFile.objects.filter(pk=instance.pk).update(duration=10)

@@ -48,17 +48,14 @@ def _check_and_notify():
     Returns the sleep interval in seconds for the next check."""
     from notification.models import EmailConfig, NotificationSetting
     from display.models import Display
-    from core.api.serializer import DEVICE_HEALTHY_THRESHOLD_SECONDS
-
-    threshold = timezone.now() - timedelta(seconds=DEVICE_HEALTHY_THRESHOLD_SECONDS)
-    logger.info(f"[CHECKER] Running check. Threshold: {threshold}")
+    from core.api.serializer import get_threshold_for_company
 
     settings_qs = NotificationSetting.objects.filter(
         is_enabled=True,
         recipient_list__isnull=False,
     ).select_related('company', 'recipient_list', 'inactive_template', 'active_template')
 
-    logger.info(f"[CHECKER] Found {settings_qs.count()} active notification settings")
+    logger.info(f"[CHECKER] Running check. Found {settings_qs.count()} active notification settings")
 
     min_interval = DEFAULT_CHECK_INTERVAL_SECONDS
 
@@ -68,9 +65,12 @@ def _check_and_notify():
         if check_interval_sec < min_interval:
             min_interval = check_interval_sec
 
+        # Per-company heartbeat threshold
+        threshold_sec = get_threshold_for_company(company)
+        threshold = timezone.now() - timedelta(seconds=threshold_sec)
+
         try:
             email_config = EmailConfig.objects.get(company=company, is_active=True)
-            logger.info(f"[CHECKER] {company.name}: SMTP={email_config.host}:{email_config.port}")
         except EmailConfig.DoesNotExist:
             logger.warning(f"[CHECKER] {company.name}: No active EmailConfig, skipping.")
             continue
@@ -81,7 +81,6 @@ def _check_and_notify():
         if not recipients:
             logger.warning(f"[CHECKER] {company.name}: Recipient list is empty, skipping.")
             continue
-        logger.info(f"[CHECKER] {company.name}: {len(recipients)} recipients")
 
         # Base queryset: only displays with notifications enabled
         from django.db.models import Q
@@ -110,7 +109,8 @@ def _check_and_notify():
 
         inactive_count = newly_inactive.count()
         online_count = back_online.count()
-        logger.info(f"[CHECKER] {company.name}: {inactive_count} newly inactive, {online_count} back online")
+        logger.info(f"[CHECKER] {company.name}: threshold={threshold_sec}s, "
+                    f"{inactive_count} newly inactive, {online_count} back online")
         if inactive_count == 0 and online_count == 0:
             continue
 

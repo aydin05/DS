@@ -238,9 +238,9 @@ class PlaylistDetailApiView(APIView):
             display_type = request.GET.get('display_type')
             playlist = get_object_or_404(Playlist, pk=id)
             list_of_data = playlist.extra_fields
-            is_exist = False
             for data in list_of_data:
                 for item in data['items']:
+                    is_exist = False
                     for display_type_item in item['display_types']:
                         if int(display_type) == int(display_type_item['id']):
                             is_exist = True

@@ -53,7 +53,7 @@ class DisplaySerializer(ModelSerializer):
         old_display = Display.objects.filter(username__iexact = value)
         if self.instance:
             old_display = old_display.exclude(id=self.instance.id)
-        elif old_display.exists():
+        if old_display.exists():
             raise serializers.ValidationError("Display with this username already exists")
         return super().validate(value)
 
@@ -61,7 +61,7 @@ class DisplaySerializer(ModelSerializer):
         old_display = Display.objects.filter(name__iexact = value, company = self.context['request'].user.company)
         if self.instance:
             old_display = old_display.exclude(id=self.instance.id)
-        elif old_display.exists():
+        if old_display.exists():
             raise serializers.ValidationError("Display with this name already exists")
         return super().validate(value)
 

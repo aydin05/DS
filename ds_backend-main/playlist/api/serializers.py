@@ -62,8 +62,7 @@ class PlaylistSerializer(ModelSerializer):
         fields = ("id", 'name', 'description', 'default_display_type','extra_fields','is_update')
 
     def get_default_display_type(self, obj):
-        display_type = DisplayType.objects.filter(id=obj.default_display_type.id).first()
-        return DisplayTypeSerializer(display_type).data
+        return DisplayTypeSerializer(obj.default_display_type).data
 
     def update(self, instance, validated_data):
         instance.company = self.context['request'].user.company
@@ -190,53 +189,61 @@ class SlideItemSerializer(ModelSerializer):
     def get_type_content(self, obj):
         return  obj.type.name
 
+    def _get_cached_display_type_match(self, obj):
+        """Return the cached SlideItemDisplayType matching the context display_type, or None."""
+        cache_attr = '_sidt_match'
+        if hasattr(obj, cache_attr):
+            return getattr(obj, cache_attr)
+        # This should already be populated by get_display_types which runs first
+        return None
+
     def get_top(self, obj):
-        display_type = self.context['display_type']
-        slide_item_display_type = SlideItemDisplayType.objects.filter(display_type = display_type, slide_item = obj).last()
-        if slide_item_display_type:
-            return slide_item_display_type.top
+        match = self._get_cached_display_type_match(obj)
+        if match:
+            return match.top
         return obj.top
 
     def get_display_types(self,obj):
-        slide_item_display_types = SlideItemDisplayType.objects.filter( slide_item = obj)
+        # Single query per item (was 5 queries before)
+        slide_item_display_types = SlideItemDisplayType.objects.filter(slide_item=obj).select_related('display_type')
         display_type = self.context['display_type']
         display_types = []
-        is_exist = False
-        for slide_item_display_type in slide_item_display_types:
-            if slide_item_display_type.display_type.id == display_type:
-                is_exist = True
+        matched = None
+        for sidt in slide_item_display_types:
+            dt_id = sidt.display_type_id
+            if display_type and str(dt_id) == str(display_type) or dt_id == display_type:
+                matched = sidt
             display_types.append({
-                'id':slide_item_display_type.display_type.id,
-                "top": slide_item_display_type.top,
-                "left": slide_item_display_type.left,
-                "width":slide_item_display_type.width,
-                "height":slide_item_display_type.height
+                'id': dt_id,
+                "top": sidt.top,
+                "left": sidt.left,
+                "width": sidt.width,
+                "height": sidt.height
             })
-        if not is_exist:
+        # Cache the match on the object so get_top/left/width/height don't re-query
+        obj._sidt_match = matched
+        if not matched:
             obj.left = 0
             obj.top = 0
         return display_types
 
 
     def get_left(self, obj):
-        display_type = self.context['display_type']
-        slide_item_display_type = SlideItemDisplayType.objects.filter(display_type = display_type,slide_item=obj).last()
-        if slide_item_display_type:
-            return slide_item_display_type.left
+        match = self._get_cached_display_type_match(obj)
+        if match:
+            return match.left
         return obj.left
 
     def get_width(self, obj):
-        display_type = self.context['display_type']
-        slide_item_display_type = SlideItemDisplayType.objects.filter(display_type = display_type,slide_item=obj).last()
-        if slide_item_display_type: 
-            return slide_item_display_type.width
+        match = self._get_cached_display_type_match(obj)
+        if match:
+            return match.width
         return obj.width
 
     def get_height(self, obj):
-        display_type = self.context['display_type']
-        slide_item_display_type = SlideItemDisplayType.objects.filter(display_type = display_type,slide_item=obj).last()
-        if slide_item_display_type:
-            return slide_item_display_type.height
+        match = self._get_cached_display_type_match(obj)
+        if match:
+            return match.height
         return obj.height
         
 class SlideSerializer(ModelSerializer):

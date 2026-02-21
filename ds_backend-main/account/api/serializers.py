@@ -34,12 +34,14 @@ class UserSerializer(ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         roles = []
-        for role in instance.role.all():
+        seen_codes = set()
+        for role in instance.role.prefetch_related('role__groupcustom').all():
             for item in role.role.all():
-                group_item = GroupCustom.objects.get(group=item)
-                if group_item not in roles:
+                group_custom = getattr(item, 'groupcustom', None)
+                if group_custom and group_custom.code not in seen_codes:
+                    seen_codes.add(group_custom.code)
                     roles.append({
-                        "code": group_item.code,
+                        "code": group_custom.code,
                         "name": item.name
                     })
         data['role'] = roles
@@ -66,7 +68,7 @@ class RegistrationSerializer(serializers.ModelSerializer):
                 'write_only': True,
                 'validators': (validate_password,)
             },
-             'passpassword_confirmationword': {
+             'password_confirmation': {
                 'write_only': True,
                 'validators': (validate_password,)
             }

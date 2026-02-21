@@ -36,14 +36,14 @@ class Display(BaseModel):
     name = models.CharField(_("Name"), max_length=100)
     description = models.TextField(_("Description"), null=True, blank=True)
     display_type = models.ForeignKey(DisplayType, on_delete=models.CASCADE)
-    username = models.CharField(_("Username"), max_length=100)
+    username = models.CharField(_("Username"), max_length=100, db_index=True)
     password = models.CharField(_("Password"), max_length=100)
     playlist = models.ForeignKey('playlist.Playlist', on_delete=models.CASCADE,null=True,blank=True)
     schedule = models.ForeignKey("playlist.Schedule", on_delete=models.CASCADE, null=True, blank=True)
     branch = models.ForeignKey('branch.Branch', on_delete=models.CASCADE)
     company = models.ForeignKey('account.Company', on_delete=models.CASCADE)
     display_group = models.ForeignKey(DisplayGroup,on_delete=models.SET_NULL, null=True,blank=True)
-    last_heartbeat = models.DateTimeField(_("Last Heartbeat"), null=True, blank=True)
+    last_heartbeat = models.DateTimeField(_("Last Heartbeat"), null=True, blank=True, db_index=True)
     last_heartbeat_source = models.CharField(
         _("Heartbeat Source"), max_length=20,
         choices=HEARTBEAT_SOURCE_CHOICES, default='unknown',
