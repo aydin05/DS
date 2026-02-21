@@ -102,8 +102,8 @@ class CompanyFileSerializer(ModelSerializer):
         file_obj = attrs.get('file')
         file_type = attrs.get('type', '')
         if file_obj and file_type == 'video':
-            from core.validators import validate_video_file
-            validate_video_file(file_obj)
+            from core.validators import transcode_video_if_needed
+            attrs['file'] = transcode_video_if_needed(file_obj)
         return attrs
 
     def create(self, validated_data):

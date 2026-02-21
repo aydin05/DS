@@ -1,99 +1,132 @@
 import subprocess
 import json
+import logging
 import os
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import InMemoryUploadedFile, SimpleUploadedFile
 
+logger = logging.getLogger(__name__)
 
-# Samsung QM43R (2019) supported video specs
+# Samsung display supported video specs
 VIDEO_MAX_BITRATE_KBPS = 8000
 VIDEO_MAX_FPS = 30
 VIDEO_ALLOWED_CODECS = ['h264']
 
 
-def validate_video_file(file_obj):
+def _probe_video(path):
+    """Run ffprobe on a file and return (video_stream_dict, format_dict) or raise."""
+    result = subprocess.run(
+        [
+            'ffprobe', '-v', 'quiet',
+            '-print_format', 'json',
+            '-show_streams', '-show_format',
+            path,
+        ],
+        capture_output=True, text=True, timeout=30,
+    )
+    if result.returncode != 0:
+        raise ValidationError('Could not read video file. Please upload a valid MP4 video.')
+
+    probe = json.loads(result.stdout)
+    video_stream = next(
+        (s for s in probe.get('streams', []) if s.get('codec_type') == 'video'),
+        None,
+    )
+    if not video_stream:
+        raise ValidationError('No video stream found in the uploaded file.')
+    return video_stream, probe.get('format', {})
+
+
+def _needs_transcode(video_stream, fmt):
+    """Return True if the video doesn't match Samsung display specs."""
+    codec = video_stream.get('codec_name', '').lower()
+    if codec not in VIDEO_ALLOWED_CODECS:
+        return True
+
+    bitrate_str = video_stream.get('bit_rate') or fmt.get('bit_rate')
+    if bitrate_str:
+        try:
+            if int(bitrate_str) / 1000 > VIDEO_MAX_BITRATE_KBPS:
+                return True
+        except (ValueError, TypeError):
+            pass
+
+    fps_str = video_stream.get('r_frame_rate', '')
+    if fps_str and '/' in fps_str:
+        try:
+            num, den = fps_str.split('/')
+            if float(num) / float(den) > VIDEO_MAX_FPS + 0.5:
+                return True
+        except (ValueError, ZeroDivisionError):
+            pass
+
+    return False
+
+
+def transcode_video_if_needed(file_obj):
     """
-    Validate uploaded video files against Samsung display hardware limits.
-    Uses ffprobe to inspect codec, bitrate, and frame rate.
-    Returns None on success, raises ValidationError with details on failure.
+    Inspect the uploaded video. If it doesn't match Samsung display specs
+    (H.264, ≤8000 kbps, ≤30 fps), re-encode it with ffmpeg automatically.
+    Returns the original file_obj if already compliant, or a new
+    SimpleUploadedFile with the transcoded content.
     """
-    # Write to a temp file so ffprobe can read it
-    tmp_path = '/tmp/_video_validate_' + str(os.getpid())
+    pid = os.getpid()
+    tmp_in = f'/tmp/_vid_in_{pid}'
+    tmp_out = f'/tmp/_vid_out_{pid}.mp4'
     try:
-        with open(tmp_path, 'wb') as f:
+        with open(tmp_in, 'wb') as f:
             for chunk in file_obj.chunks():
                 f.write(chunk)
-        # Reset file pointer so Django can still save it later
         file_obj.seek(0)
 
-        result = subprocess.run(
-            [
-                'ffprobe',
-                '-v', 'quiet',
-                '-print_format', 'json',
-                '-show_streams',
-                '-show_format',
-                tmp_path,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
+        video_stream, fmt = _probe_video(tmp_in)
 
-        if result.returncode != 0:
-            raise ValidationError('Could not read video file. Please upload a valid MP4 video.')
+        if not _needs_transcode(video_stream, fmt):
+            logger.info('Video already compliant, no transcode needed.')
+            return file_obj
 
-        probe = json.loads(result.stdout)
-        streams = probe.get('streams', [])
-        video_stream = None
-        for s in streams:
-            if s.get('codec_type') == 'video':
-                video_stream = s
-                break
+        logger.info('Video needs transcode — re-encoding to H.264 / 8000 kbps / 30 fps …')
 
-        if not video_stream:
-            raise ValidationError('No video stream found in the uploaded file.')
-
-        errors = []
-
-        # 1. Codec check
-        codec = video_stream.get('codec_name', '').lower()
-        if codec not in VIDEO_ALLOWED_CODECS:
-            errors.append(
-                'Video codec "%s" is not supported. Please use H.264 (MP4).' % codec
+        cmd = [
+            'ffmpeg', '-y', '-i', tmp_in,
+            '-c:v', 'libx264',
+            '-preset', 'medium',
+            '-crf', '18',
+            '-maxrate', f'{VIDEO_MAX_BITRATE_KBPS}k',
+            '-bufsize', f'{VIDEO_MAX_BITRATE_KBPS * 2}k',
+            '-r', str(VIDEO_MAX_FPS),
+            '-pix_fmt', 'yuv420p',
+            '-c:a', 'aac', '-b:a', '128k',
+            '-movflags', '+faststart',
+            tmp_out,
+        ]
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
+        if proc.returncode != 0:
+            logger.error('ffmpeg failed: %s', proc.stderr[-500:] if proc.stderr else '')
+            raise ValidationError(
+                'Video transcoding failed. Please upload a valid video file.'
             )
 
-        # 2. Bitrate check (try stream bitrate first, then format-level)
-        bitrate_str = video_stream.get('bit_rate')
-        if not bitrate_str:
-            bitrate_str = probe.get('format', {}).get('bit_rate')
-        if bitrate_str:
-            try:
-                bitrate_kbps = int(bitrate_str) / 1000
-                if bitrate_kbps > VIDEO_MAX_BITRATE_KBPS:
-                    errors.append(
-                        'Video bitrate is %.0f kbps, maximum allowed is %d kbps. '
-                        'Please re-encode with a lower bitrate.' % (bitrate_kbps, VIDEO_MAX_BITRATE_KBPS)
-                    )
-            except (ValueError, TypeError):
-                pass
+        with open(tmp_out, 'rb') as f:
+            transcoded_bytes = f.read()
 
-        # 3. Frame rate check
-        fps_str = video_stream.get('r_frame_rate', '')
-        if fps_str and '/' in fps_str:
-            try:
-                num, den = fps_str.split('/')
-                fps = float(num) / float(den)
-                if fps > VIDEO_MAX_FPS + 0.5:  # small tolerance
-                    errors.append(
-                        'Video frame rate is %.1f fps, maximum allowed is %d fps. '
-                        'Please re-encode at %d fps or lower.' % (fps, VIDEO_MAX_FPS, VIDEO_MAX_FPS)
-                    )
-            except (ValueError, ZeroDivisionError):
-                pass
+        original_name = getattr(file_obj, 'name', 'video.mp4')
+        if not original_name.lower().endswith('.mp4'):
+            original_name = os.path.splitext(original_name)[0] + '.mp4'
 
-        if errors:
-            raise ValidationError(errors)
+        new_file = SimpleUploadedFile(
+            name=original_name,
+            content=transcoded_bytes,
+            content_type='video/mp4',
+        )
+        logger.info(
+            'Transcode complete: %d KB → %d KB',
+            file_obj.size // 1024,
+            len(transcoded_bytes) // 1024,
+        )
+        return new_file
 
     finally:
-        if os.path.exists(tmp_path):
-            os.remove(tmp_path)
+        for p in (tmp_in, tmp_out):
+            if os.path.exists(p):
+                os.remove(p)

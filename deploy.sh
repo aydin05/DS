@@ -188,6 +188,8 @@ if [ "$DEPLOY_BACKEND" = true ]; then
         --exclude '_development' \
         --exclude 'media/' \
         --exclude 'logs/' \
+        --exclude 'venv/' \
+        --exclude '.venv/' \
         "${BACKEND_DIR}/" \
         "${SSH_TARGET}:${REMOTE_BACKEND}/"
     log "Backend files uploaded"
