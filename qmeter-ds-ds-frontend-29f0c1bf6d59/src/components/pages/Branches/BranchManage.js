@@ -83,15 +83,36 @@ const BranchManage = (props) => {
   };
 
   const toggleDisplayNotifications = (displayId, checked) => {
+    const displays = branchSlice.formValue.display?.results || branchSlice.formValue.display || [];
+    const isSingleDisplay = displays.length === 1;
+
     axiosClient
       .patch(`display/display/${displayId}/`, {
         notifications_enabled: checked,
       })
       .then(() => {
-        message.success(
-          `Display notifications ${checked ? "enabled" : "disabled"}`,
-        );
-        dispatch(getBranchDataById({ id: params.id, page: 1 }));
+        if (isSingleDisplay) {
+          const branchData = branchSlice.formValue;
+          dispatch(
+            updateBranchData({
+              id: branchData.id,
+              name: branchData.name,
+              description: branchData.description,
+              timezone: branchData.timezone,
+              notifications_enabled: checked,
+            }),
+          ).then(() => {
+            message.success(
+              `Notifications ${checked ? "enabled" : "disabled"}`,
+            );
+            dispatch(getBranchDataById({ id: params.id, page: 1 }));
+          });
+        } else {
+          message.success(
+            `Display notifications ${checked ? "enabled" : "disabled"}`,
+          );
+          dispatch(getBranchDataById({ id: params.id, page: 1 }));
+        }
       })
       .catch(() => {
         message.error("Failed to update display notifications");

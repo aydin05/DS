@@ -74,20 +74,8 @@ export const links = {
       icon: settings,
       children: [
         {
-          to: "/settings/email-config",
+          to: "/settings/email",
           title: "Email Settings",
-        },
-        {
-          to: "/settings/email-templates",
-          title: "Email Templates",
-        },
-        {
-          to: "/settings/recipient-lists",
-          title: "Recipient Lists",
-        },
-        {
-          to: "/settings/device-alerts",
-          title: "Device Alerts",
         },
       ],
       permission: "settings_management",

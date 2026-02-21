@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import {
   Button,
   Divider,
@@ -8,8 +8,6 @@ import {
   Menu,
   message,
   Select,
-  Switch,
-  Tag,
 } from "antd";
 import tableAction from "../../../assets/images/table-action.svg";
 import { SubHeader } from "../../SubComponents/SubHeader";
@@ -23,7 +21,6 @@ import {
   toggleDeleteModal,
   toggleModal,
   updateBranchData,
-  patchBranchNotification,
 } from "../../store/features/branchSlice";
 import axiosClient from "../../../config";
 import { timeZones } from "../../../staticData";
@@ -35,7 +32,6 @@ export const Branches = () => {
   const [form] = Form.useForm();
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [notifFilter, setNotifFilter] = useState(undefined);
   /*store data*/
   const {
     isLoading,
@@ -122,33 +118,6 @@ export const Branches = () => {
       key: "description",
     },
     {
-      title: "Notifications",
-      dataIndex: "notifications_enabled",
-      key: "notifications_enabled",
-      render: (value, row) => (
-        <Switch
-          size="small"
-          checked={value}
-          onChange={(checked) => {
-            dispatch(updateBranchData({
-              id: row.id,
-              name: row.name,
-              description: row.description,
-              timezone: row.timezone,
-              notifications_enabled: checked,
-            })).then((res) => {
-              if (res.meta.requestStatus === "fulfilled") {
-                message.success(`"${row.name}" & all its displays notifications ${checked ? "enabled" : "disabled"}`);
-                dispatch(fetchBranchData({ page: current_page, search: "", notifications_enabled: notifFilter }));
-              } else {
-                message.error("Failed to update");
-              }
-            });
-          }}
-        />
-      ),
-    },
-    {
       title: "Actions",
       dataIndex: "action",
       key: "action",
@@ -217,26 +186,6 @@ export const Branches = () => {
         count={count}
         current={current_page}
         pageSize={pageSize}
-        extraFilter={
-          <Select
-            allowClear
-            placeholder="Notifications"
-            style={{ marginRight: 10, minWidth: 160 }}
-            value={notifFilter}
-            size="large"
-            onChange={(value) => {
-              setNotifFilter(value);
-              dispatch(fetchBranchData({ page: 1, search: "", notifications_enabled: value }));
-            }}
-          >
-            <Select.Option value="true">
-              <Tag color="green" style={{ margin: 0 }}>On</Tag>
-            </Select.Option>
-            <Select.Option value="false">
-              <Tag color="red" style={{ margin: 0 }}>Off</Tag>
-            </Select.Option>
-          </Select>
-        }
       />
       {/*create and edit modal*/}
       <AuthModal

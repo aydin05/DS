@@ -10,10 +10,7 @@ import BranchManage from "../pages/Branches/BranchManage";
 import ManageSchedule from "../pages/Schedule/ManageSchedule";
 import { DeviceStatus } from "../pages/DeviceStatus/DeviceStatus";
 import DeviceStatusView from "../pages/DeviceStatus/DeviceStatusView";
-import { EmailConfig } from "../pages/Settings/EmailConfig";
-import { EmailTemplates } from "../pages/Settings/EmailTemplates";
-import { RecipientLists } from "../pages/Settings/RecipientLists";
-import { NotificationSettings } from "../pages/Settings/NotificationSettings";
+import { EmailSettings } from "../pages/Settings/EmailSettings";
 
 export const routes = {
   admin: [
@@ -102,25 +99,8 @@ export const routes = {
       permission: "playlist_management",
     },
     {
-      path: "/settings",
-      children: [
-        {
-          path: "/settings/email-config",
-          element: <EmailConfig />,
-        },
-        {
-          path: "/settings/email-templates",
-          element: <EmailTemplates />,
-        },
-        {
-          path: "/settings/recipient-lists",
-          element: <RecipientLists />,
-        },
-        {
-          path: "/settings/device-alerts",
-          element: <NotificationSettings />,
-        },
-      ],
+      path: "/settings/email",
+      element: <EmailSettings />,
       permission: "settings_management",
     },
   ],

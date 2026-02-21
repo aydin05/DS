@@ -46,15 +46,18 @@ const CustomDataTable = ({
     <div align="end" className="mt-4 custom-table">
       {extraFilter}
       {setStatus && (
-        <Select
-          allowClear
-          placeholder="Status"
-          options={statusOptions}
-          style={{ marginRight: 10 }}
-          value={status}
-          size="large"
-          onChange={(value) => setStatus(value)}
-        />
+        <>
+          <span style={{ fontSize: 13, color: "#555", marginRight: 4 }}>Status:</span>
+          <Select
+            allowClear
+            placeholder="Status"
+            options={statusOptions}
+            style={{ marginRight: 10 }}
+            value={status}
+            size="large"
+            onChange={(value) => setStatus(value)}
+          />
+        </>
       )}
       <Input.Search
         placeholder="Search"
