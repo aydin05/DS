@@ -6,60 +6,39 @@ import EmailTemplates from "./EmailTemplates";
 import RecipientLists from "./RecipientLists";
 import NotificationSettings from "./NotificationSettings";
 
+const { TabPane } = Tabs;
+
 export const EmailSettings = () => {
   const [activeKey, setActiveKey] = useState("email-config");
 
-  const items = [
-    {
-      key: "email-config",
-      label: (
-        <span>
-          <MailOutlined style={{ marginRight: 8 }} />
-          Email Config
-        </span>
-      ),
-      children: <EmailConfig />,
-    },
-    {
-      key: "email-templates",
-      label: (
-        <span>
-          <FileTextOutlined style={{ marginRight: 8 }} />
-          Email Templates
-        </span>
-      ),
-      children: <EmailTemplates />,
-    },
-    {
-      key: "recipient-lists",
-      label: (
-        <span>
-          <TeamOutlined style={{ marginRight: 8 }} />
-          Recipient Lists
-        </span>
-      ),
-      children: <RecipientLists />,
-    },
-    {
-      key: "device-alerts",
-      label: (
-        <span>
-          <AlertOutlined style={{ marginRight: 8 }} />
-          Device Alerts
-        </span>
-      ),
-      children: <NotificationSettings />,
-    },
-  ];
-
   return (
     <div style={{ padding: "20px" }}>
-      <Tabs
-        activeKey={activeKey}
-        onChange={setActiveKey}
-        items={items}
-        type="card"
-      />
+      <Tabs activeKey={activeKey} onChange={setActiveKey} type="card">
+        <TabPane
+          tab={<span><MailOutlined style={{ marginRight: 8 }} />Email Config</span>}
+          key="email-config"
+        >
+          <EmailConfig />
+        </TabPane>
+        <TabPane
+          tab={<span><FileTextOutlined style={{ marginRight: 8 }} />Email Templates</span>}
+          key="email-templates"
+        >
+          <EmailTemplates />
+        </TabPane>
+        <TabPane
+          tab={<span><TeamOutlined style={{ marginRight: 8 }} />Recipient Lists</span>}
+          key="recipient-lists"
+        >
+          <RecipientLists />
+        </TabPane>
+        <TabPane
+          tab={<span><AlertOutlined style={{ marginRight: 8 }} />Device Alerts</span>}
+          key="device-alerts"
+        >
+          <NotificationSettings />
+        </TabPane>
+      </Tabs>
     </div>
   );
 };
