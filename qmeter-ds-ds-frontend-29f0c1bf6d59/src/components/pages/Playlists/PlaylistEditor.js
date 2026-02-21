@@ -61,8 +61,7 @@ const PlaylistEditor = () => {
   const finish = (values) => {
     values.id = params.id;
     values["description"] = playListSlice.formValue.description;
-    values["default_display_type"] =
-      playListSlice.formValue.default_display_type.id;
+    values["default_display_type"] = display_id || playListSlice.formValue.default_display_type.id;
     dispatch(updatePlayListData(values));
   };
 
@@ -246,6 +245,14 @@ const PlaylistEditor = () => {
     dispatch(saveSlideSlice({ id: params.id, data: saveData, display_type }))
       .unwrap()
       .then((res) => {
+        if (display_type && display_type !== playListSlice.formValue?.default_display_type?.id) {
+          dispatch(updatePlayListData({
+            id: params.id,
+            name: playListSlice.formValue.name,
+            description: playListSlice.formValue.description,
+            default_display_type: display_type,
+          }));
+        }
         message.success("Playlist saved successfully!");
       });
   };

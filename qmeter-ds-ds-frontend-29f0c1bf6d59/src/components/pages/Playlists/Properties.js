@@ -120,15 +120,20 @@ const Properties = ({ size }) => {
     formData.append("file", file); //append file
     formData.append("type", type); //append file type , video or image
     setIsLoading(true);
+    const hideMsg = type === "video"
+      ? message.loading("Preparing video for display specs (H.264 / 8000 kbps / 30 fps). Please wait, do not close the page...", 0)
+      : null;
     axiosClient
       .post("core/file/", formData)
       .then(() => {
+        hideMsg && hideMsg();
         message.success(`${file.name} file uploaded successfully.`);
         dispatch(uploadFile());
         setIsLoading(false);
         type === "video" && setTab("2");
       })
       .catch((error) => {
+        hideMsg && hideMsg();
         setIsLoading(false);
         const data = error.response && error.response.data;
         if (data && data.non_field_errors) {
