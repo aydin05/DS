@@ -99,8 +99,13 @@ export const routes = {
       permission: "playlist_management",
     },
     {
-      path: "/settings/email",
-      element: <EmailSettings />,
+      path: "/settings",
+      children: [
+        {
+          path: "/settings/email",
+          element: <EmailSettings />,
+        },
+      ],
       permission: "settings_management",
     },
   ],
