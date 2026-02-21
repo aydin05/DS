@@ -83,7 +83,7 @@ class Company(BaseModel):
 
     name = models.CharField(max_length=100)
     logo = models.ImageField(verbose_name="Logo",
-                              upload_to="media//company", null=True)
+                              upload_to="company", null=True)
     country = CountryField(_("Country"), null=True, blank=True)
     sector = models.CharField(_("Sector"),max_length=100, null=True, blank=True)
     timezone = models.CharField(_("Timezone"),choices=TIMEZONE_LIST,default="Asia/Dubai",max_length=100)

@@ -1,7 +1,3 @@
-from asyncio import constants
-from faulthandler import disable
-from itertools import count
-from urllib import request
 from rest_framework.serializers import ModelSerializer
 from rest_framework import serializers
 from branch.models import Branch

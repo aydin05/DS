@@ -1,4 +1,3 @@
-from operator import truediv
 from django.db import models
 from dsqmeter.utils.base_model import BaseModel
 from django.utils.translation import gettext_lazy as _
@@ -40,7 +39,7 @@ class Display(BaseModel):
     username = models.CharField(_("Username"), max_length=100)
     password = models.CharField(_("Password"), max_length=100)
     playlist = models.ForeignKey('playlist.Playlist', on_delete=models.CASCADE,null=True,blank=True)
-    schedule = models.ForeignKey("playlist.Schedule", on_delete=models.CASCADE, max_length=100 , null=True, blank=True)
+    schedule = models.ForeignKey("playlist.Schedule", on_delete=models.CASCADE, null=True, blank=True)
     branch = models.ForeignKey('branch.Branch', on_delete=models.CASCADE)
     company = models.ForeignKey('account.Company', on_delete=models.CASCADE)
     display_group = models.ForeignKey(DisplayGroup,on_delete=models.SET_NULL, null=True,blank=True)

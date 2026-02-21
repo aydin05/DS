@@ -275,6 +275,10 @@ class Player {
         const doTransition = () => {
             if (transitioned || this._stopped) return;
             transitioned = true;
+            if (this._mediaTimeoutId) {
+                clearTimeout(this._mediaTimeoutId);
+                this._mediaTimeoutId = null;
+            }
             Logger.info("All media elements have loaded successfully."); //
             this.transitionToNextSlide(container);
         };

@@ -31,7 +31,6 @@ import { fetchBranchData } from "../store/features/branchSlice";
 import { fetchRoleData } from "../store/features/roleSlice";
 import CustomDataTable from "../consts/CustomDataTable";
 
-const { TabPane } = Tabs;
 const { Text } = Typography;
 export const Users = () => {
   const [form] = Form.useForm();
@@ -308,182 +307,179 @@ export const Users = () => {
         isFooter={"none"}
       >
         <Form layout="vertical" onFinish={finish} form={form}>
-          <Tabs activeKey={tab} onChange={changeTab}>
-            <TabPane tab="User details" key="1">
-              <Form.Item
-                label="Full name"
-                name="fullname"
-                rules={[{ required: true, message: "Full name is required!" }]}
-              >
-                <Input placeholder="Enter full name" />
-              </Form.Item>
-              <Form.Item
-                label="Email"
-                name="email"
-                rules={[{ required: true, message: "Email is required!" }]}
-              >
-                <Input placeholder="Enter email" />
-              </Form.Item>
-              {!formValue.id && (
-                <Form.Item
-                  label="Password"
-                  name="password"
-                  rules={[{ required: true, message: "Password is required!" }]}
-                >
-                  <Input.Password placeholder="Enter password" />
-                </Form.Item>
-              )}
-              {!formValue.id && (
-                <Form.Item
-                  label="Password confirmation"
-                  name="password_confirmation"
-                  rules={[
-                    {
-                      required: true,
-                      message: "Password confirmation is required!",
-                    },
-                  ]}
-                >
-                  <Input.Password placeholder="Enter password confirmation" />
-                </Form.Item>
-              )}
-              <Form.Item
-                name="phone_number"
-                label="Phone number"
-                validateFirst
-                rules={[
-                  {
-                    required: true,
-                    pattern: /^(?:\d*)$/,
-                    message: "Value should contain just number",
-                  },
-                  {
-                    min: 9,
-                    message: "Value should be more than 9 character",
-                  },
-                  {
-                    max: 15,
-                    message: "Value should be less than 15 character",
-                  },
-                ]}
-                validateTrigger="onBlur"
-              >
-                <Input
-                  style={{ width: "100%" }}
-                  placeholder="Enter phone number"
-                />
-              </Form.Item>
-              <Form.Item label="Job title" name="job_title">
-                <Input placeholder="Enter job title" />
-              </Form.Item>
-              {/* <Form.Item
-                label={"Day of week"}
-                name={"day_of_week"}
-                rules={[
-                  { required: true, message: "Day of week is required!" },
-                ]}
-              >
-                <Select placeholder="Select week">
-                  {weeks.map((item, index) => (
-                    <Select.Option key={index} value={item.value}>
-                      {item.title}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item> */}
-              <Form.Item
-                label={"Time zone"}
-                name={"timezone"}
-                rules={[{ required: true, message: "Time zone is required!" }]}
-              >
-                <Select
-                  placeholder="Select timezone"
-                  showSearch
-                  allowClear
-                  filterOption={(input, option) =>
-                    option.children.toLowerCase().includes(input.toLowerCase())
-                  }
-                >
-                  {timeZones.map((item, index) => (
-                    <Select.Option key={index} value={item.value}>
-                      {item.title}
-                    </Select.Option>
-                  ))}
-                </Select>
-              </Form.Item>
-              <Form.Item name="is_admin" valuePropName="checked">
-                <Checkbox defaultChecked={false} onChange={changeCheckbox}>
-                  Is Admin?
-                </Checkbox>
-              </Form.Item>
-            </TabPane>
-            {!disabled && !form.getFieldsValue().is_admin && (
-              <TabPane tab="Branches" key="2">
-                <Form.Item
-                  name="branch"
-                  label="Branches"
-                  initialValue={formValue.branch || []}
-                >
-                  <Checkbox.Group>
-                    <Row>
-                      {branchSlice.data.length > 0 &&
-                        branchSlice.data.map((item, index) => (
-                          <div
-                            className="d-flex"
-                            style={{
-                              flexWrap: "wrap",
-                            }}
-                            key={index}
-                          >
-                            <Checkbox
-                              value={item.id}
+          <Tabs activeKey={tab} onChange={changeTab} items={[
+            {
+              key: "1",
+              label: "User details",
+              children: (
+                <>
+                  <Form.Item
+                    label="Full name"
+                    name="fullname"
+                    rules={[{ required: true, message: "Full name is required!" }]}
+                  >
+                    <Input placeholder="Enter full name" />
+                  </Form.Item>
+                  <Form.Item
+                    label="Email"
+                    name="email"
+                    rules={[{ required: true, message: "Email is required!" }]}
+                  >
+                    <Input placeholder="Enter email" />
+                  </Form.Item>
+                  {!formValue.id && (
+                    <Form.Item
+                      label="Password"
+                      name="password"
+                      rules={[{ required: true, message: "Password is required!" }]}
+                    >
+                      <Input.Password placeholder="Enter password" />
+                    </Form.Item>
+                  )}
+                  {!formValue.id && (
+                    <Form.Item
+                      label="Password confirmation"
+                      name="password_confirmation"
+                      rules={[
+                        {
+                          required: true,
+                          message: "Password confirmation is required!",
+                        },
+                      ]}
+                    >
+                      <Input.Password placeholder="Enter password confirmation" />
+                    </Form.Item>
+                  )}
+                  <Form.Item
+                    name="phone_number"
+                    label="Phone number"
+                    validateFirst
+                    rules={[
+                      {
+                        required: true,
+                        pattern: /^(?:\d*)$/,
+                        message: "Value should contain just number",
+                      },
+                      {
+                        min: 9,
+                        message: "Value should be more than 9 character",
+                      },
+                      {
+                        max: 15,
+                        message: "Value should be less than 15 character",
+                      },
+                    ]}
+                    validateTrigger="onBlur"
+                  >
+                    <Input
+                      style={{ width: "100%" }}
+                      placeholder="Enter phone number"
+                    />
+                  </Form.Item>
+                  <Form.Item label="Job title" name="job_title">
+                    <Input placeholder="Enter job title" />
+                  </Form.Item>
+                  <Form.Item
+                    label={"Time zone"}
+                    name={"timezone"}
+                    rules={[{ required: true, message: "Time zone is required!" }]}
+                  >
+                    <Select
+                      placeholder="Select timezone"
+                      showSearch
+                      allowClear
+                      filterOption={(input, option) =>
+                        option.children.toLowerCase().includes(input.toLowerCase())
+                      }
+                    >
+                      {timeZones.map((item, index) => (
+                        <Select.Option key={index} value={item.value}>
+                          {item.title}
+                        </Select.Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
+                  <Form.Item name="is_admin" valuePropName="checked">
+                    <Checkbox defaultChecked={false} onChange={changeCheckbox}>
+                      Is Admin?
+                    </Checkbox>
+                  </Form.Item>
+                </>
+              ),
+            },
+            ...(!disabled && !form.getFieldsValue().is_admin ? [
+              {
+                key: "2",
+                label: "Branches",
+                children: (
+                  <Form.Item
+                    name="branch"
+                    label="Branches"
+                    initialValue={formValue.branch || []}
+                  >
+                    <Checkbox.Group>
+                      <Row>
+                        {branchSlice.data.length > 0 &&
+                          branchSlice.data.map((item, index) => (
+                            <div
+                              className="d-flex"
                               style={{
-                                lineHeight: "32px",
+                                flexWrap: "wrap",
                               }}
+                              key={index}
                             >
-                              {item.name}
-                            </Checkbox>
-                          </div>
-                        ))}
-                    </Row>
-                  </Checkbox.Group>
-                </Form.Item>
-              </TabPane>
-            )}
-            {!disabled && !form.getFieldsValue().is_admin && (
-              <TabPane tab="Roles" key="3">
-                <Form.Item
-                  name="role"
-                  label="Roles"
-                  initialValue={formValue.role || []}
-                >
-                  <Checkbox.Group>
-                    <Row>
-                      {roleSlice.data.length > 0 &&
-                        roleSlice.data.map((item, index) => (
-                          <div
-                            className="d-flex"
-                            style={{
-                              flexWrap: "wrap",
-                            }}
-                            key={index}
-                          >
-                            <Checkbox
-                              value={item.id}
+                              <Checkbox
+                                value={item.id}
+                                style={{
+                                  lineHeight: "32px",
+                                }}
+                              >
+                                {item.name}
+                              </Checkbox>
+                            </div>
+                          ))}
+                      </Row>
+                    </Checkbox.Group>
+                  </Form.Item>
+                ),
+              },
+              {
+                key: "3",
+                label: "Roles",
+                children: (
+                  <Form.Item
+                    name="role"
+                    label="Roles"
+                    initialValue={formValue.role || []}
+                  >
+                    <Checkbox.Group>
+                      <Row>
+                        {roleSlice.data.length > 0 &&
+                          roleSlice.data.map((item, index) => (
+                            <div
+                              className="d-flex"
                               style={{
-                                lineHeight: "32px",
+                                flexWrap: "wrap",
                               }}
+                              key={index}
                             >
-                              {item.name}
-                            </Checkbox>
-                          </div>
-                        ))}
-                    </Row>
-                  </Checkbox.Group>
-                </Form.Item>
-              </TabPane>
-            )}
-          </Tabs>
+                              <Checkbox
+                                value={item.id}
+                                style={{
+                                  lineHeight: "32px",
+                                }}
+                              >
+                                {item.name}
+                              </Checkbox>
+                            </div>
+                          ))}
+                      </Row>
+                    </Checkbox.Group>
+                  </Form.Item>
+                ),
+              },
+            ] : []),
+          ]} />
           <Divider />
           {/*{*/}
           {/*    postDataError && <div>*/}

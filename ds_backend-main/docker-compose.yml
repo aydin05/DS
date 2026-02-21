@@ -23,7 +23,6 @@ services:
             - TIMEOUT=300
             - HTTP_PORT=8000
             - STATS_PORT=8001
-            - LANG=C.UTF-8
             - LANG=en_US.UTF-8
             - LANGUAGE=en_US:en
             - LC_ALL=en_US.UTF-8

@@ -201,7 +201,7 @@ if PROD:
 else:
     # STATIC_ROOT = os.path.join(BASE_DIR, 'static')
     STATICFILES_DIRS = [
-        os.path.join(BASE_DIR/ 'static')
+        BASE_DIR / 'static'
     ]
 
 MEDIA_URL = '/media/'
@@ -215,7 +215,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 import pytz
 
 
-defualt_tz = pytz.timezone("Asia/Dubai")
+default_tz = pytz.timezone("Asia/Dubai")
 
 LOGS_DIR = os.path.join(BASE_DIR, 'logs') # Kullanıcı logları da bu dizin altına yazılacak
 if not os.path.exists(LOGS_DIR):

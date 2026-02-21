@@ -147,8 +147,8 @@ function OpenLink() {
           style={{
             position: "relative",
             backgroundColor: currentSlide.bg_color,
-            width: `${previewData.general?.width}px` || "100%",
-            height: `${previewData.general?.height}px` || "100%",
+            width: previewData.general?.width ? `${previewData.general.width}px` : "100%",
+            height: previewData.general?.height ? `${previewData.general.height}px` : "100%",
             margin: "0 auto",
           }}
         >

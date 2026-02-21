@@ -22,14 +22,16 @@ axiosClient.interceptors.response.use(
     return response;
   },
   (error) => {
+    if (!error.response) {
+      store.dispatch(networkError());
+      return Promise.reject(error);
+    }
     switch (error.response.status) {
       case 400:
         return Promise.reject(error);
       case 401:
         store.dispatch(logOut());
         return Promise.reject(error);
-      case 0:
-        store.dispatch(networkError());
       default:
         return Promise.reject(error);
     }

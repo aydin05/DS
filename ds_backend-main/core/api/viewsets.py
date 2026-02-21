@@ -1,4 +1,3 @@
-from urllib import request
 from django.db import models
 from django.contrib.auth.models import Group
 from rest_framework.viewsets import ModelViewSet

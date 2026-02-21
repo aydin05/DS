@@ -50,7 +50,6 @@ import Iframe from "./Items/Site";
 import Table, { defaultColumnThStyleAttr } from "./Items/Table";
 
 const { Panel } = Collapse;
-const { TabPane } = Tabs;
 const { Dragger } = Upload;
 let durations = [];
 (() => {
@@ -520,162 +519,174 @@ const Properties = ({ size }) => {
         isFooter={"none"}
         width={1000}
       >
-        <Tabs activeKey={tab} centered onChange={(e) => setTab(e)}>
-          <TabPane tab="Images" key="1">
-            <h4>Already added</h4>
-            <Row>
-              <Col span={12}>
-                <div
-                  className="d-flex justify-content-start align-items-center"
-                  style={{
-                    flexWrap: "wrap",
-                    height: "440px",
-                    overflow: "auto",
-                  }}
-                >
-                  {isLoadingUpload ? (
-                    <Spin />
-                  ) : (
-                    uploadDatas
-                      .filter((item) => item.type === "image")
-                      .map((item, index) => (
-                        <div key={index} className="image-crop mt-2 ">
-                          <div
-                            className={"image-crop-inner-div"}
-                            onClick={() => {
-                              selectedFiles.some((i) => i.id === item.id)
-                                ? removeFiles(item.id)
-                                : selectFiles(item);
-                            }}
-                          >
-                            <img src={item.file} alt={`image file` + index} />
-                            {selectedFiles.some((i) => i.id === item.id) && (
-                              <span className="selected">
-                                <img src={checkMark} />
+        <Tabs activeKey={tab} centered onChange={(e) => setTab(e)} items={[
+          {
+            key: "1",
+            label: "Images",
+            children: (
+              <>
+                <h4>Already added</h4>
+                <Row>
+                  <Col span={12}>
+                    <div
+                      className="d-flex justify-content-start align-items-center"
+                      style={{
+                        flexWrap: "wrap",
+                        height: "440px",
+                        overflow: "auto",
+                      }}
+                    >
+                      {isLoadingUpload ? (
+                        <Spin />
+                      ) : (
+                        uploadDatas
+                          .filter((item) => item.type === "image")
+                          .map((item, index) => (
+                            <div key={index} className="image-crop mt-2 ">
+                              <div
+                                className={"image-crop-inner-div"}
+                                onClick={() => {
+                                  selectedFiles.some((i) => i.id === item.id)
+                                    ? removeFiles(item.id)
+                                    : selectFiles(item);
+                                }}
+                              >
+                                <img src={item.file} alt={`image file` + index} />
+                                {selectedFiles.some((i) => i.id === item.id) && (
+                                  <span className="selected">
+                                    <img src={checkMark} />
+                                  </span>
+                                )}
+                              </div>
+                              <span onClick={() => toggleDelete(item.id)}>
+                                <img
+                                  className="cancel"
+                                  src={cancel}
+                                  alt={"cancel"}
+                                />
                               </span>
-                            )}
-                          </div>
-                          <span onClick={() => toggleDelete(item.id)}>
-                            <img
-                              className="cancel"
-                              src={cancel}
-                              alt={"cancel"}
-                            />
-                          </span>
-                        </div>
-                      ))
-                  )}
-                </div>
-              </Col>
-              <Col span={12} style={{ borderLeft: "1px solid #e4dfdf" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    maxHeight: "440px",
-                    overflow: "auto",
-                  }}
-                >
-                  {selectedFiles
-                    .filter((item) => item.type === "image")
-                    .map((item, index) => (
-                      <div className="image-crop mt-2" key={index}>
-                        <div className="image-crop-inner-div">
-                          <img src={item.file} alt={`image file` + index} />
-                          <span onClick={() => removeFiles(item.id)}>
-                            <img
-                              className="cancel"
-                              src={cancel}
-                              alt={"cancel"}
-                            />
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </Col>
-            </Row>
-          </TabPane>
-          <TabPane tab="Videos" key="2">
-            <h4>Already added</h4>
-            <Row>
-              <Col span={12}>
-                <div
-                  className="d-flex justify-content-start align-items-center"
-                  style={{
-                    flexWrap: "wrap",
-                    height: "440px",
-                    overflow: "auto",
-                  }}
-                >
-                  {isLoadingUpload ? (
-                    <Spin />
-                  ) : (
-                    uploadDatas
-                      .filter((item) => item.type === "video")
-                      .map((item, index) => (
-                        <div key={index} className="image-crop mt-2">
-                          <div
-                            className="image-crop-inner-div"
-                            onClick={() => {
-                              selectedFiles.some((i) => i.id === item.id)
-                                ? removeFiles(item.id)
-                                : selectFiles(item);
-                            }}
-                          >
-                            <video preload="metadata" muted playsInline>
-                              <source src={`${item.file}#t=0.1`} type="video/mp4" />
-                            </video>
-                            {selectedFiles.some((i) => i.id === item.id) && (
-                              <span className="selected">
-                                <img src={checkMark} />
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  </Col>
+                  <Col span={12} style={{ borderLeft: "1px solid #e4dfdf" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        maxHeight: "440px",
+                        overflow: "auto",
+                      }}
+                    >
+                      {selectedFiles
+                        .filter((item) => item.type === "image")
+                        .map((item, index) => (
+                          <div className="image-crop mt-2" key={index}>
+                            <div className="image-crop-inner-div">
+                              <img src={item.file} alt={`image file` + index} />
+                              <span onClick={() => removeFiles(item.id)}>
+                                <img
+                                  className="cancel"
+                                  src={cancel}
+                                  alt={"cancel"}
+                                />
                               </span>
-                            )}
+                            </div>
                           </div>
-                          <span onClick={() => toggleDelete(item.id)}>
-                            <img
-                              className="cancel"
-                              src={cancel}
-                              alt={"cancel"}
-                            />
-                          </span>
-                        </div>
-                      ))
-                  )}
-                </div>
-              </Col>
-              <Col span={12} style={{ borderLeft: "1px solid #e4dfdf" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    maxHeight: "440px",
-                    overflow: "auto",
-                  }}
-                >
-                  {selectedFiles
-                    .filter((item) => item.type === "video")
-                    .map((item, index) => (
-                      <div key={index} className="image-crop mt-2">
-                        <div className="image-crop-inner-div">
-                          <video preload="metadata" muted playsInline>
-                            <source src={`${item.file}#t=0.1`} type="video/mp4" />
-                          </video>
-                          <span onClick={() => removeFiles(item.id)}>
-                            <img
-                              className="cancel"
-                              src={cancel}
-                              alt={"cancel"}
-                            />
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </Col>
-            </Row>
-          </TabPane>
-        </Tabs>
+                        ))}
+                    </div>
+                  </Col>
+                </Row>
+              </>
+            ),
+          },
+          {
+            key: "2",
+            label: "Videos",
+            children: (
+              <>
+                <h4>Already added</h4>
+                <Row>
+                  <Col span={12}>
+                    <div
+                      className="d-flex justify-content-start align-items-center"
+                      style={{
+                        flexWrap: "wrap",
+                        height: "440px",
+                        overflow: "auto",
+                      }}
+                    >
+                      {isLoadingUpload ? (
+                        <Spin />
+                      ) : (
+                        uploadDatas
+                          .filter((item) => item.type === "video")
+                          .map((item, index) => (
+                            <div key={index} className="image-crop mt-2">
+                              <div
+                                className="image-crop-inner-div"
+                                onClick={() => {
+                                  selectedFiles.some((i) => i.id === item.id)
+                                    ? removeFiles(item.id)
+                                    : selectFiles(item);
+                                }}
+                              >
+                                <video preload="metadata" muted playsInline>
+                                  <source src={`${item.file}#t=0.1`} type="video/mp4" />
+                                </video>
+                                {selectedFiles.some((i) => i.id === item.id) && (
+                                  <span className="selected">
+                                    <img src={checkMark} />
+                                  </span>
+                                )}
+                              </div>
+                              <span onClick={() => toggleDelete(item.id)}>
+                                <img
+                                  className="cancel"
+                                  src={cancel}
+                                  alt={"cancel"}
+                                />
+                              </span>
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  </Col>
+                  <Col span={12} style={{ borderLeft: "1px solid #e4dfdf" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        maxHeight: "440px",
+                        overflow: "auto",
+                      }}
+                    >
+                      {selectedFiles
+                        .filter((item) => item.type === "video")
+                        .map((item, index) => (
+                          <div key={index} className="image-crop mt-2">
+                            <div className="image-crop-inner-div">
+                              <video preload="metadata" muted playsInline>
+                                <source src={`${item.file}#t=0.1`} type="video/mp4" />
+                              </video>
+                              <span onClick={() => removeFiles(item.id)}>
+                                <img
+                                  className="cancel"
+                                  src={cancel}
+                                  alt={"cancel"}
+                                />
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </Col>
+                </Row>
+              </>
+            ),
+          },
+        ]} />
         <Divider />
         {isLoading ? (
           <Spin>

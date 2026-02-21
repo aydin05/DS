@@ -1,4 +1,3 @@
-from unicodedata import name
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -13,7 +12,7 @@ class Playlist(BaseModel):
     description = models.TextField(_("Description"), null=True, blank=True)
     company = models.ForeignKey('account.Company', on_delete=models.CASCADE)
     default_display_type = models.ForeignKey('display.DisplayType', on_delete=models.CASCADE)
-    extra_fields = JSONField(default=dict, blank=True) 
+    extra_fields = JSONField(default=list, blank=True) 
 
     def __str__(self):
         return self.name

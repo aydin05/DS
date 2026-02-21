@@ -1,6 +1,5 @@
 from typing import Iterable
 from django.shortcuts import get_object_or_404
-from requests import request
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 from rest_framework import serializers
 from display.api.serializers import DisplayTypeSerializer
@@ -8,7 +7,7 @@ from core.models import WidgetType
 from display.models import DisplayType
 from rest_framework.exceptions import ValidationError,NotFound
 
-from dsqmeter.settings import defualt_tz
+from dsqmeter.settings import default_tz
 from playlist.models import Playlist, Schedule, SchedulePlaylist, Slide, SlideItem, SlideItemDisplayType
 from django.utils.translation import gettext_lazy as _
 
@@ -80,14 +79,9 @@ class PlaylistSerializer(ModelSerializer):
     def get_is_update(self, obj):
         is_update = False
         if isinstance(self.instance, Iterable):
-            print('burda',"dad",obj)
-            # for playlist in self.instance:
-                # print(playlist.extra_fields)
-                # print(playlist.extra_fields,playlist.name)
             if obj.extra_fields:
                 is_update = True
                 return is_update
-            print('burds',is_update)
             return  is_update
         else:
             if self.instance.extra_fields:
@@ -120,8 +114,8 @@ class SchedulePlaylistSerializer(ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data['start_time'] = instance.start_time.astimezone(defualt_tz).strftime("%Y-%m-%d %H:%M:%S")
-        data['end_time'] = instance.end_time.astimezone(defualt_tz).strftime("%Y-%m-%d %H:%M:%S")
+        data['start_time'] = instance.start_time.astimezone(default_tz).strftime("%Y-%m-%d %H:%M:%S")
+        data['end_time'] = instance.end_time.astimezone(default_tz).strftime("%Y-%m-%d %H:%M:%S")
         return data
 
     def create(self, validated_data):
@@ -157,7 +151,6 @@ class SlideItemSerializer(ModelSerializer):
     def create(self, validated_data):
         display_type = self.context['display_type']
         type_content = validated_data.get('type_content',None)
-        print(display_type, type(display_type))
         if type_content:
             validated_data.pop('type_content')
         if "rows" in validated_data:
@@ -210,7 +203,6 @@ class SlideItemSerializer(ModelSerializer):
         display_types = []
         is_exist = False
         for slide_item_display_type in slide_item_display_types:
-            print(display_type)
             if slide_item_display_type.display_type.id == display_type:
                 is_exist = True
             display_types.append({
@@ -223,13 +215,11 @@ class SlideItemSerializer(ModelSerializer):
         if not is_exist:
             obj.left = 0
             obj.top = 0
-        print(obj.left,'dsdsd')
         return display_types
 
 
     def get_left(self, obj):
         display_type = self.context['display_type']
-        print(obj.left,'dddd')
         slide_item_display_type = SlideItemDisplayType.objects.filter(display_type = display_type,slide_item=obj).last()
         if slide_item_display_type:
             return slide_item_display_type.left
@@ -313,11 +303,8 @@ class PlaylistDetailSerializer(ModelSerializer):
 
     def get_slides(self, obj):
         if obj.slides:
-            # print('burda')
             return obj.slides
-        print("dsda", obj.slides)
         slide = obj.slide_set.all().order_by('position')
-        print("slide", slide)
         display_type = self.context['request'].GET.get('display_type')
         if not display_type:
             display_type = obj.default_display_type

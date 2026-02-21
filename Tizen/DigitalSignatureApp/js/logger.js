@@ -143,17 +143,21 @@ const Logger = {
 
         const url = this.credentials.server + this.serverLogEndpoint;
 
+        var deviceId = 'unknown';
         try {
-            // console.log(`Logger: Sending ${logsToSend.length} logs to ${url}`);
+            if (typeof tizen !== 'undefined' && tizen.systeminfo) {
+                deviceId = tizen.systeminfo.getCapability("http://tizen.org/system/tizenid");
+            }
+        } catch (e) { /* ignore */ }
+
+        try {
             const response = await fetch(url, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
-                    // Gerekirse buraya kimlik doğrulama başlıkları ekleyebilirsiniz
-                    // Örn: "Authorization": "Bearer YOUR_TOKEN" veya Basic Auth
                 },
                 body: JSON.stringify({
-                    deviceId: tizen.systeminfo.getCapability("http://tizen.org/system/tizenid"),
+                    deviceId: deviceId,
                     username: this.credentials.username,
                     password: this.credentials.password,
                     logs: logsToSend
