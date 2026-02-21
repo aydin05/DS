@@ -22,13 +22,13 @@ from corsheaders.defaults import default_headers
 # See https://docs.djangoproject.com/en/4.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-1%m!%^_#!57wai79c3g^db$2wocvh&v5@w*hy4_-0v$0c+l5hw'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-dev-only-key-do-not-use-in-production')
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True').lower() in ('true', '1', 'yes')
 PROD = not DEBUG
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('VIRTUAL_HOST', 'localhost').split(',')
 
 # Trust the X-Forwarded-Proto header from nginx-proxy so Django
 # generates https:// URLs for media files (fixes Mixed Content errors)
@@ -72,7 +72,19 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'dsqmeter.urls'
 
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ORIGIN_ALLOW_ALL = False
+CORS_ALLOWED_ORIGINS = [
+    'https://aydin.technolink.az',
+    'http://aydin.technolink.az',
+    'https://116.203.187.99',
+    'http://116.203.187.99',
+]
+if DEBUG:
+    CORS_ALLOWED_ORIGINS += [
+        'http://localhost:3000',
+        'http://localhost:3333',
+        'http://127.0.0.1:3000',
+    ]
 
 CORS_ALLOW_HEADERS = list(default_headers) + [
     'token',
@@ -134,10 +146,11 @@ REST_FRAMEWORK = {
     # )
 }
 
+from datetime import timedelta
 REST_KNOX = {
-  'SECURE_HASH_ALGORITHM': 'cryptography.hazmat.primitives.hashes.SHA512',
+  'SECURE_HASH_ALGORITHM': 'hashlib.sha512',
   'AUTH_TOKEN_CHARACTER_LENGTH': 64,
-  'TOKEN_TTL': None,
+  'TOKEN_TTL': timedelta(days=30),
 }
 
 AUTH_USER_MODEL = "account.User"

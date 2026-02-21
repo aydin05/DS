@@ -1,4 +1,4 @@
-FROM python:3.7
+FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED 1
 ENV APP_ROOT /code
@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y \
   libxslt1-dev \
   zlib1g-dev \
   libffi-dev \
-  wkhtmltopdf \
   libssl-dev \
   ffmpeg \
   supervisor

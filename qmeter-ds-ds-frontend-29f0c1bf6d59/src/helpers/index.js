@@ -1,16 +1,16 @@
-import moment from "moment";
+import dayjs from "dayjs";
 
 const pageSize = 10;
 
 const formats = {
-  timeGutterFormat: (date) => moment(date).format("HH:mm"),
-  agendaTimeFormat: (date) => moment(date).format("HH:mm"),
+  timeGutterFormat: (date) => dayjs(date).format("HH:mm"),
+  agendaTimeFormat: (date) => dayjs(date).format("HH:mm"),
   eventTimeRangeFormat: ({ start, end }) =>
-    `${moment(start).format("HH:mm")} – ${moment(end).format("HH:mm")}`,
-  dayHeaderFormat: (date) => moment(date).format("dddd, DD MMMM"),
-  dayFormat: (date) => moment(date).format("ddd, DD MMM"),
+    `${dayjs(start).format("HH:mm")} – ${dayjs(end).format("HH:mm")}`,
+  dayHeaderFormat: (date) => dayjs(date).format("dddd, DD MMMM"),
+  dayFormat: (date) => dayjs(date).format("ddd, DD MMM"),
   agendaHeaderFormat: ({ start, end }) =>
-    `${moment(start).format("DD MMM")} – ${moment(end).format("DD MMM")}`,
+    `${dayjs(start).format("DD MMM")} – ${dayjs(end).format("DD MMM")}`,
 };
 
 const extractPermissionCodes = (user) => {

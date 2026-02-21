@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import UniqueConstraint
 from django.utils.translation import gettext_lazy as _
 from dsqmeter.utils.base_model import BaseModel
 
@@ -41,7 +42,9 @@ class EmailTemplate(BaseModel):
     class Meta:
         verbose_name = _("Email Template")
         verbose_name_plural = _("Email Templates")
-        unique_together = ('company', 'name')
+        constraints = [
+            UniqueConstraint(fields=['company', 'name'], name='unique_email_template_per_company'),
+        ]
         ordering = ['-created_at']
 
     def __str__(self):
@@ -63,7 +66,9 @@ class RecipientList(BaseModel):
     class Meta:
         verbose_name = _("Recipient List")
         verbose_name_plural = _("Recipient Lists")
-        unique_together = ('company', 'name')
+        constraints = [
+            UniqueConstraint(fields=['company', 'name'], name='unique_recipient_list_per_company'),
+        ]
         ordering = ['-created_at']
 
     def __str__(self):
@@ -81,7 +86,9 @@ class Recipient(BaseModel):
     class Meta:
         verbose_name = _("Recipient")
         verbose_name_plural = _("Recipients")
-        unique_together = ('recipient_list', 'email')
+        constraints = [
+            UniqueConstraint(fields=['recipient_list', 'email'], name='unique_recipient_per_list'),
+        ]
         ordering = ['-created_at']
 
     def __str__(self):

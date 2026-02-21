@@ -10,7 +10,7 @@ from rest_framework.exceptions import ValidationError,NotFound
 
 from dsqmeter.settings import defualt_tz
 from playlist.models import Playlist, Schedule, SchedulePlaylist, Slide, SlideItem, SlideItemDisplayType
-from django.utils.translation import ugettext_lazy as _
+from django.utils.translation import gettext_lazy as _
 
 
 class PlaylistCreateSerializer(ModelSerializer):

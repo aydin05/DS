@@ -1,4 +1,4 @@
-FROM node:14-slim
+FROM node:20-slim
 
 WORKDIR /app
 
@@ -6,9 +6,9 @@ COPY ./custom-ckeditor5 custom-ckeditor5
 
 RUN cd custom-ckeditor5 && npm install && npm run build && cd ..
 
-ADD package.json package.json
+COPY package.json package-lock.json* ./
 
-RUN npm install -g express && npm install helmet && npm install --no-optional
+RUN npm install
 
 COPY . ./
 

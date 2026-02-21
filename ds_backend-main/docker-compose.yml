@@ -3,7 +3,7 @@ version: '3.1'
 
 services: 
     postgres:
-        image: postgres:11
+        image: postgres:16
         restart: always
         volumes:
             - ./pgdb/:/var/lib/postgresql/
@@ -18,7 +18,7 @@ services:
         restart: "always"
         command: ["supervisord", "-c", "/code/supervisord.conf"]
         environment:
-            - VIRTUAL_HOST=116.203.187.99
+            - VIRTUAL_HOST=aydin.technolink.az,116.203.187.99,localhost
             - VIRTUAL_PROTO=http
             - CERT_NAME=kapitalbank_az
             - VIRTUAL_PORT=8000

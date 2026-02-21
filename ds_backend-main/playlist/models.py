@@ -4,7 +4,7 @@ from django.utils.translation import gettext_lazy as _
 
 from core.models import WidgetType
 from dsqmeter.utils.base_model import BaseModel
-from django.contrib.postgres.fields.jsonb import JSONField
+from django.db.models import JSONField
 from utils.choices import REPEAT_LIST
 from display.models import DisplayType
 

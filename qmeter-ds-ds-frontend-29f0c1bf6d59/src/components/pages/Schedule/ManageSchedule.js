@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Calendar, momentLocalizer } from "react-big-calendar";
-import moment from "moment";
+import { Calendar, dayjsLocalizer } from "react-big-calendar";
+import dayjs from "dayjs";
 import { useDispatch, useSelector } from "react-redux";
 import {
   deleteScheduleData,
@@ -55,7 +55,7 @@ const ManageSchedule = (props) => {
   const [allDay, setIsAllDay] = useState(false);
   const [repeatType, setRepeatType] = useState(false);
   const [saveScheduleData, setSaveScheduleData] = useState({});
-  const localizer = momentLocalizer(moment);
+  const localizer = dayjsLocalizer(dayjs);
   const [startDate, setStartDate] = useState(null);
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -69,8 +69,8 @@ const ManageSchedule = (props) => {
     ).then((res) => {
       setSelectEvent(false);
       let data = res.data;
-      data["start_time"] = moment(data.start_time);
-      data["end_time"] = moment(data.end_time);
+      data["start_time"] = dayjs(data.start_time);
+      data["end_time"] = dayjs(data.end_time);
       setIsAllDay(data.is_all_day);
       setRepeatType(data.repeat_type);
       setSaveScheduleData(data);
@@ -109,8 +109,8 @@ const ManageSchedule = (props) => {
     toggle();
   };
   const finish = (values) => {
-    values["start_time"] = moment(values.start_time).format();
-    values["end_time"] = moment(values.end_time).format();
+    values["start_time"] = dayjs(values.start_time).format();
+    values["end_time"] = dayjs(values.end_time).format();
     if (saveScheduleData.id) {
       values["id"] = saveScheduleData.id;
       dispatch(updateScheduleDateForm({ id: params.id, data: values }));
@@ -268,7 +268,7 @@ const ManageSchedule = (props) => {
                 <DatePicker
                   format={"DD/MM/YYYY"}
                   disabledDate={(current) =>
-                    current && current < moment().startOf("day")
+                    current && current < dayjs().startOf("day")
                   }
                   onChange={(value) => setStartDate(value)}
                 />
@@ -277,7 +277,7 @@ const ManageSchedule = (props) => {
                   showTime
                   format={"YYYY-MM-DD HH:mm:ss"}
                   disabledDate={(current) =>
-                    current && current < moment().startOf("day")
+                    current && current < dayjs().startOf("day")
                   }
                   onChange={(value) => setStartDate(value)}
                 />
@@ -295,7 +295,7 @@ const ManageSchedule = (props) => {
                   disabled={!startDate}
                   disabledDate={(current) =>
                     current &&
-                    (current < moment().startOf("day") ||
+                    (current < dayjs().startOf("day") ||
                       (startDate && current < startDate))
                   }
                 />
@@ -306,7 +306,7 @@ const ManageSchedule = (props) => {
                   disabled={!startDate}
                   disabledDate={(current) =>
                     current &&
-                    (current < moment().startOf("day") ||
+                    (current < dayjs().startOf("day") ||
                       (startDate && current < startDate))
                   }
                 />

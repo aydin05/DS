@@ -1,5 +1,3 @@
-import imp
-from urllib import request
 from rest_framework.serializers import ModelSerializer
 from display.models import DisplayType,DisplayGroup,Display
 from rest_framework import serializers
