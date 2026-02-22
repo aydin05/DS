@@ -13,8 +13,18 @@ import { extractPermissionCodes, hasPermission } from "../../helpers";
 const { Content } = Layout;
 
 export const ContentApp = ({ toggle }) => {
-  const user = JSON.parse(Cookies.get("user"));
   const dispatch = useDispatch();
+  const userCookie = Cookies.get("user");
+  let user;
+  try {
+    user = userCookie ? JSON.parse(userCookie) : null;
+  } catch {
+    user = null;
+  }
+  if (!user) {
+    dispatch(logOut());
+    return null;
+  }
   const userPermissions = extractPermissionCodes(user);
 
   const logout = () => {

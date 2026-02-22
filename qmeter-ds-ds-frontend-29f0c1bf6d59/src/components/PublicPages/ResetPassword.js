@@ -23,10 +23,12 @@ const ResetPassword = (props) => {
       ]);
       return;
     }
-    let token = params.search.slice(params.search.indexOf("token=") + 6);
-    if (!token) return;
+    const searchParams = new URLSearchParams(params.search);
+    const token = searchParams.get("token");
+    const uidb64 = searchParams.get("uidb64");
+    if (!token || !uidb64) return;
     let body = {
-      uidb64: "NTM",
+      uidb64,
       token,
       ...values,
     };
@@ -41,8 +43,8 @@ const ResetPassword = (props) => {
       })
       .catch((err) => {
         setLoading(false);
-        err.response.data.password &&
-          setResetErrors(err.response.data.password);
+        if (err.response?.data?.password) setResetErrors(err.response.data.password);
+        else if (err.response?.data?.message) setResetErrors([err.response.data.message]);
       });
   };
 
@@ -102,7 +104,7 @@ const ResetPassword = (props) => {
         ))}
         <Button
           loading={loading}
-          type="gray"
+          type="primary"
           size="large"
           block
           htmlType="submit"

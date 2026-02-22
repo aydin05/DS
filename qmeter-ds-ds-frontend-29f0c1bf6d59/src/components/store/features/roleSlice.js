@@ -126,12 +126,12 @@ const roleSlice = createSlice({
       state.isOpenModal = false;
     });
     builder.addCase(postRoleData.rejected, (state, action) => {
-      let error = Object.entries(action.payload).map(([key, value]) => {
-        return {
-          name: key,
-          errors: value,
-        };
-      });
+      let error = action.payload
+        ? Object.entries(action.payload).map(([key, value]) => ({
+            name: key,
+            errors: value,
+          }))
+        : [{ name: "error", errors: ["Network error"] }];
       state.postDataLoading = false;
       state.postError = error;
     });

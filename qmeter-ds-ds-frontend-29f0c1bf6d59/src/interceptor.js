@@ -6,10 +6,9 @@ import { logOut, networkError } from "./components/store/features/loginSlice";
 axiosClient.interceptors.request.use(
   (config) => {
     const qToken = Cookies.get("q-token");
-    qToken &&
-      (config["headers"] = {
-        Authorization: "Token " + qToken,
-      });
+    if (qToken) {
+      config.headers.Authorization = "Token " + qToken;
+    }
     return config;
   },
   (error) => {

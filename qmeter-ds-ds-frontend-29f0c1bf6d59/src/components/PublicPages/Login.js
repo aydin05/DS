@@ -21,13 +21,13 @@ const Login = () => {
     axiosClient
       .post("accounts/login/", values)
       .then((res) => {
-        Cookies.set("q-token", res.data.token, { expires: 0.2 });
-        Cookies.set("user", JSON.stringify(res.data, { expires: 0.02 }));
+        Cookies.set("q-token", res.data.token, { expires: 30 });
+        Cookies.set("user", JSON.stringify(res.data), { expires: 30 });
         dispatch(loginSuccess());
         navigate("/");
       })
       .catch((error) => {
-        if (error.response.status) dispatch(loginError(error.response.data));
+        if (error.response) dispatch(loginError(error.response.data));
       });
   };
   return (
@@ -74,7 +74,7 @@ const Login = () => {
           ))}
         <Button
           loading={isLoading}
-          type="gray"
+          type="primary"
           size="large"
           block
           htmlType="submit"

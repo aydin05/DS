@@ -24,7 +24,7 @@ const ForgotPassword = (props) => {
       })
       .catch((err) => {
         setLoading(false);
-        err.response.data.email && setResetErrors(err.response.data.email);
+        if (err.response?.data?.email) setResetErrors(err.response.data.email);
       });
   };
 
@@ -62,7 +62,7 @@ const ForgotPassword = (props) => {
         ))}
         <Button
           loading={loading}
-          type="gray"
+          type="primary"
           size="large"
           block
           htmlType="submit"

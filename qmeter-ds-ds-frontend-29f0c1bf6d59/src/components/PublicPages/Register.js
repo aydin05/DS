@@ -52,7 +52,9 @@ const Register = () => {
           navigate("/");
           message.success(res.data.message);
         })
-        .catch((err) => dispatch(registerError(err.response.data)));
+        .catch((err) => {
+          if (err.response) dispatch(registerError(err.response.data));
+        });
     }
   };
   return (
@@ -74,7 +76,7 @@ const Register = () => {
           rules={[
             {
               required: true,
-              registerMessage: "Please enter full name!",
+              message: "Please enter full name!",
             },
           ]}
         >
@@ -85,7 +87,7 @@ const Register = () => {
           rules={[
             {
               required: true,
-              registerMessage: "Please email!",
+              message: "Please email!",
             },
           ]}
         >
@@ -104,7 +106,7 @@ const Register = () => {
           rules={[
             {
               required: true,
-              registerMessage: "Please password!",
+              message: "Please password!",
             },
           ]}
         >
@@ -115,7 +117,7 @@ const Register = () => {
           rules={[
             {
               required: true,
-              registerMessage: "Please enter password confirmation!",
+              message: "Please enter password confirmation!",
             },
           ]}
         >
@@ -153,7 +155,7 @@ const Register = () => {
           rules={[
             {
               required: true,
-              registerMessage: "Please select country name!",
+              message: "Please select country name!",
             },
           ]}
         >
@@ -175,7 +177,7 @@ const Register = () => {
           rules={[
             {
               required: true,
-              registerMessage: "Please enter company name!",
+              message: "Please enter company name!",
             },
           ]}
         >
@@ -183,7 +185,7 @@ const Register = () => {
         </Form.Item>
         <Button
           loading={isLoading}
-          type="gray"
+          type="primary"
           size="large"
           block
           htmlType="submit"
