@@ -721,7 +721,7 @@ const Properties = ({ size }) => {
           <Button onClick={toggle} className="mx-2">
             Cancel
           </Button>
-          <Button onClick={addItemSlide} type="success">
+          <Button onClick={addItemSlide} className="ant-btn-success">
             Add
           </Button>
         </div>
@@ -743,7 +743,7 @@ const Properties = ({ size }) => {
           <Button
             onClick={deleteImageOrVideo}
             loading={deleteStatus}
-            type="danger"
+            className="ant-btn-danger"
           >
             Delete
           </Button>
@@ -780,7 +780,7 @@ const Properties = ({ size }) => {
             >
               Cancel
             </Button>
-            <Button type="success" htmlType="submit" className={"mx-2"}>
+            <Button className="ant-btn-success mx-2" htmlType="submit">
               Add
             </Button>
           </div>

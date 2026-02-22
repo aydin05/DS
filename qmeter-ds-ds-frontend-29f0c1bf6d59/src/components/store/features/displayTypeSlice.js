@@ -143,7 +143,7 @@ const displayTypeSlice = createSlice({
       state.deleteDataLoading = true;
     });
     builder.addCase(deleteDisplayTypeData.fulfilled, (state, action) => {
-      state.deleteDataLoading = true;
+      state.deleteDataLoading = false;
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
     });

@@ -41,7 +41,6 @@ const PlaylistEditor = () => {
     width: 0,
     height: 0,
   });
-  console.log(size, "sizeeeoeo");
   const toggleEdit = () => dispatch(toggleModal("isPlaylist"));
 
   const changeDisplay = (e) => {
@@ -315,8 +314,7 @@ const PlaylistEditor = () => {
             <Button
               size={"middle"}
               loading={slideStatus}
-              type="success"
-              className="mx-2"
+              className="ant-btn-success mx-2"
               onClick={save}
             >
               Save
@@ -346,7 +344,7 @@ const PlaylistEditor = () => {
             </Button>
             <Button
               loading={playListSlice.postDataLoading}
-              type="success"
+              className="ant-btn-success"
               htmlType="submit"
             >
               Save

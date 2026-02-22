@@ -147,7 +147,7 @@ const userSlice = createSlice({
       state.deleteDataLoading = true;
     });
     builder.addCase(deleteUserData.fulfilled, (state, action) => {
-      state.deleteDataLoading = true;
+      state.deleteDataLoading = false;
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
     });

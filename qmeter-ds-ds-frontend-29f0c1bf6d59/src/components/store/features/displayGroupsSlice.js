@@ -121,7 +121,7 @@ const displayGroupSlice = createSlice({
       state.deleteDataLoading = true;
     });
     builder.addCase(deleteDisplayGroupData.fulfilled, (state, action) => {
-      state.deleteDataLoading = true;
+      state.deleteDataLoading = false;
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
     });

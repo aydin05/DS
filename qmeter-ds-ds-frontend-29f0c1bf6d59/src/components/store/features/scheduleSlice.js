@@ -205,7 +205,7 @@ const scheduleSlice = createSlice({
       state.deleteDataLoading = true;
     });
     builder.addCase(deleteScheduleData.fulfilled, (state, action) => {
-      state.deleteDataLoading = true;
+      state.deleteDataLoading = false;
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
     });

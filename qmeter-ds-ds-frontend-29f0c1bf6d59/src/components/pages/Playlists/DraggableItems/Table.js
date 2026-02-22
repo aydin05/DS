@@ -18,7 +18,6 @@ const Table = (props) => {
   const tableRef = useRef(null);
   const dispatch = useDispatch();
   const { selectedItem } = useSelector((state) => state.playListInnerSlice);
-  console.log("selectedItem  :", selectedItem);
   // const item = selectedItem.items.find(
   //   (element) => element.index === selectedItem.selectedIndex
   // );

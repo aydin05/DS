@@ -483,7 +483,7 @@ export const Users = () => {
           <Divider />
           {/*{*/}
           {/*    postDataError && <div>*/}
-          {/*        <Typography.Text type="danger">All errors : </Typography.Text>*/}
+          {/*        <Typography.Text className="ant-btn-danger">All errors : </Typography.Text>*/}
           {/*        <br/>*/}
           {/*        {Object.values(postDataError).map(item => (item.map((i, z) => <Text*/}
           {/*            key={z}*/}
@@ -494,7 +494,7 @@ export const Users = () => {
             <Button type="text" htmlType="button" onClick={toggleEdit}>
               Cancel
             </Button>
-            <Button type="success" loading={postDataLoading} htmlType="submit">
+            <Button className="ant-btn-success" loading={postDataLoading} htmlType="submit">
               Save
             </Button>
           </div>
@@ -518,7 +518,7 @@ export const Users = () => {
           <Button
             onClick={deleteUser}
             loading={deleteDataLoading}
-            type="danger"
+            className="ant-btn-danger"
             htmlType="submit"
           >
             Delete

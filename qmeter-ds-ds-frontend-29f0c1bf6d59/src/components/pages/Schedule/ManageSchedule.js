@@ -181,7 +181,7 @@ const ManageSchedule = (props) => {
           <p> You can manage schedule date from this section</p>
         </div>
         <div>
-          <Button onClick={toggleDeleteSchedule} type="danger">
+          <Button onClick={toggleDeleteSchedule} className="ant-btn-danger">
             Delete Schedule
           </Button>
         </div>
@@ -385,7 +385,7 @@ const ManageSchedule = (props) => {
             >
               Cancel
             </Button>
-            <Button loading={postDataLoading} type="success" htmlType="submit">
+            <Button loading={postDataLoading} className="ant-btn-success" htmlType="submit">
               Save
             </Button>
           </div>
@@ -411,7 +411,7 @@ const ManageSchedule = (props) => {
           <Button
             onClick={deleteSchedule}
             loading={deleteDataLoading}
-            type="danger"
+            className="ant-btn-danger"
             htmlType="submit"
           >
             Delete

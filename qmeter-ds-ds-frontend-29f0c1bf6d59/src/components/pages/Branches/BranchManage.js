@@ -320,7 +320,7 @@ const BranchManage = (props) => {
           {branchSlice.formValue?.name}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-          <Button onClick={toggleDeleteBranch} type="danger">
+          <Button onClick={toggleDeleteBranch} className="ant-btn-danger">
             Delete Branch
           </Button>
         </div>
@@ -479,7 +479,7 @@ const BranchManage = (props) => {
             <Button type="text" htmlType="button" onClick={toggleEdit}>
               Cancel
             </Button>
-            <Button loading={postDataLoading} type="success" htmlType="submit">
+            <Button loading={postDataLoading} className="ant-btn-success" htmlType="submit">
               Save
             </Button>
           </div>
@@ -503,7 +503,7 @@ const BranchManage = (props) => {
           >
             Cancel
           </Button>
-          <Button onClick={deleteBranch} type="danger" htmlType="submit">
+          <Button onClick={deleteBranch} className="ant-btn-danger" htmlType="submit">
             Save
           </Button>
         </div>
@@ -526,7 +526,7 @@ const BranchManage = (props) => {
           <Button
             onClick={deleteDisplay}
             loading={deleteDataLoading}
-            type="danger"
+            className="ant-btn-danger"
             htmlType="submit"
           >
             Delete

@@ -568,7 +568,6 @@ const playListInnerSlice = createSlice({
             return { duration: i.attr.duration, name: i.attr.location };
           }),
           items: item.items.map((i, y) => {
-            console.log(widgetTypes);
             let type = widgetTypes.find((x) => x.id === i.type).name;
 
             if (i.display_types) i["display_types"] = i.display_types;

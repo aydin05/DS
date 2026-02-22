@@ -229,7 +229,7 @@ export const Branches = () => {
             <Button type="text" htmlType="button" onClick={toggleEdit}>
               Cancel
             </Button>
-            <Button loading={postDataLoading} type="success" htmlType="submit">
+            <Button loading={postDataLoading} className="ant-btn-success" htmlType="submit">
               Save
             </Button>
           </div>
@@ -253,7 +253,7 @@ export const Branches = () => {
           <Button
             onClick={deleteBranch}
             loading={deleteDataLoading}
-            type="danger"
+            className="ant-btn-danger"
             htmlType="submit"
           >
             Delete

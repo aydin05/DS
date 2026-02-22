@@ -177,8 +177,6 @@ const Preview = (props) => {
   useEffect(() => {
     /*you catch the status from the redux and start the playList*/
 
-    console.log("previewData.slides : ", previewData.slides);
-
     if (previewData.slides && previewData.slides.length > 0) {
       startPlayList(0);
     }

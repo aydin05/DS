@@ -39,7 +39,6 @@ const downloadDeviceLogsById = createAsyncThunk(
   "deviceStatusDownloadById",
   async (id) => {
     const response = await axiosClient.get(`core/logs/${id}/download/`);
-    console.log("Download response:", response.headers);
     return response.data;
   },
 );

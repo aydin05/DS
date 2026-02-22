@@ -219,7 +219,7 @@ export const Roles = () => {
             <Button type="text" htmlType="button" onClick={toggleEdit}>
               Cancel
             </Button>
-            <Button loading={postDataLoading} type="success" htmlType="submit">
+            <Button loading={postDataLoading} className="ant-btn-success" htmlType="submit">
               Save
             </Button>
           </div>
@@ -243,7 +243,7 @@ export const Roles = () => {
           <Button
             onClick={deleteRole}
             loading={deleteDataLoading}
-            type="danger"
+            className="ant-btn-danger"
             htmlType="submit"
           >
             Save

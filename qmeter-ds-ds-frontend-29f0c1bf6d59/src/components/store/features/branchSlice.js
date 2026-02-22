@@ -179,7 +179,7 @@ const branchSlice = createSlice({
       state.deleteDataLoading = true;
     });
     builder.addCase(deleteBranchData.fulfilled, (state, action) => {
-      state.deleteDataLoading = true;
+      state.deleteDataLoading = false;
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
     });

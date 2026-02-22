@@ -161,7 +161,7 @@ const roleSlice = createSlice({
       state.deleteDataLoading = true;
     });
     builder.addCase(deleteRoleData.fulfilled, (state, action) => {
-      state.deleteDataLoading = true;
+      state.deleteDataLoading = false;
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
     });

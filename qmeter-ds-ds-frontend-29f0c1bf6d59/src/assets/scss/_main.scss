@@ -16,14 +16,27 @@ $menu-item-selected: #3c596d !important;
 .ant-btn-success {
   background-color: #6ac17a !important;
   color: white !important;
+  border-color: #6ac17a !important;
+  &:hover, &:focus {
+    background-color: #58ad68 !important;
+    border-color: #58ad68 !important;
+    color: white !important;
+  }
 }
 .ant-btn-danger {
   background-color: #fc5543 !important;
   color: white !important;
+  border-color: #fc5543 !important;
+  &:hover, &:focus {
+    background-color: #e04030 !important;
+    border-color: #e04030 !important;
+    color: white !important;
+  }
 }
 .ant-btn-gray {
   background-color: $main-color;
   color: white !important;
+  border-color: transparent !important;
 }
 .ant-layout-sider-collapsed {
   max-width: 75px !important;
