@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import {
   Button,
   Checkbox,
@@ -15,6 +15,7 @@ import {
 import tableAction from "../../assets/images/table-action.svg";
 import { SubHeader } from "../SubComponents/SubHeader";
 import { AuthModal } from "../SubComponents/AuthModal";
+import ConfirmDeleteModal from "../SubComponents/ConfirmDeleteModal";
 import { useDispatch, useSelector } from "react-redux";
 import {
   deleteRoleData,
@@ -53,16 +54,16 @@ export const Roles = () => {
   /*component states*/
 
   /*component actions*/
-  const toggleEdit = () => dispatch(toggleModal());
-  const toggleDelete = (id = null) => dispatch(toggleDeleteModal(id));
+  const toggleEdit = useCallback(() => dispatch(toggleModal()), [dispatch]);
+  const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id)), [dispatch]);
 
-  const finish = (values) => {
+  const finish = useCallback((values) => {
     if (formValue.id) {
       values.id = formValue.id;
       dispatch(updateRoleData(values));
     } else dispatch(postRoleData(values));
-  };
-  const deleteRole = () => dispatch(deleteRoleData(deletedRoleId));
+  }, [formValue.id, dispatch]);
+  const deleteRole = useCallback(() => dispatch(deleteRoleData(deletedRoleId)), [deletedRoleId, dispatch]);
   /*side effects*/
   useEffect(() => {
     // dispatch(fetchRoleData({ page: 1 }));
@@ -97,7 +98,7 @@ export const Roles = () => {
       form.resetFields();
     }
   }, [formValue]);
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: "#",
       dataIndex: "id",
@@ -141,7 +142,7 @@ export const Roles = () => {
         </Dropdown>
       ),
     },
-  ];
+  ], [dispatch, toggleDelete]);
   return (
     <div>
       <SubHeader
@@ -225,30 +226,12 @@ export const Roles = () => {
         </Form>
       </AuthModal>
 
-      {/*delete modal*/}
-      <AuthModal
-        title="Are you sure?"
+      <ConfirmDeleteModal
         isOpen={isOpenDeleteModal}
-        cancel={toggleDelete}
-        // save={deleteDisplaytype}
-        okType={"danger"}
-        isFooter={"none"}
-      >
-        <h3 align="center">You will not be able to recover this!</h3>
-        <div className="d-flex justify-content-end">
-          <Button type="text" htmlType="button" onClick={() => toggleDelete()}>
-            Cancel
-          </Button>
-          <Button
-            onClick={deleteRole}
-            loading={deleteDataLoading}
-            className="ant-btn-danger"
-            htmlType="submit"
-          >
-            Save
-          </Button>
-        </div>
-      </AuthModal>
+        onCancel={() => toggleDelete()}
+        onConfirm={deleteRole}
+        loading={deleteDataLoading}
+      />
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Button,
   Checkbox,
@@ -15,6 +15,7 @@ import {
 import tableAction from "../../assets/images/table-action.svg";
 import { SubHeader } from "../SubComponents/SubHeader";
 import { AuthModal } from "../SubComponents/AuthModal";
+import ConfirmDeleteModal from "../SubComponents/ConfirmDeleteModal";
 import { timeZones, weeks } from "../../staticData";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -64,7 +65,7 @@ export const Users = () => {
     tab !== "1" && changeTab("1");
     dispatch(toggleModal());
   };
-  const toggleDelete = (id = null) => dispatch(toggleDeleteModal(id));
+  const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id)), [dispatch]);
 
   const changeCheckbox = ({ target }) => {
     if (target.checked) {
@@ -78,11 +79,11 @@ export const Users = () => {
     }
   };
   const changeTab = (key) => key !== tab && setTab(key);
-  const deleteUser = () => dispatch(deleteUserData(deleteUserId));
-  const getuserDataById = (id) => {
+  const deleteUser = useCallback(() => dispatch(deleteUserData(deleteUserId)), [deleteUserId, dispatch]);
+  const getuserDataById = useCallback((id) => {
     dispatch(getUserDataById(id));
     setDisabled(false);
-  };
+  }, [dispatch]);
 
   const finish = async () => {
     try {
@@ -219,7 +220,7 @@ export const Users = () => {
   //     else if (role) setTab("3")
   //
   // }, [form])
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: "#",
       dataIndex: "id",
@@ -274,7 +275,7 @@ export const Users = () => {
         </Dropdown>
       ),
     },
-  ];
+  ], [getuserDataById, toggleDelete]);
   return (
     <div>
       <SubHeader
@@ -498,30 +499,12 @@ export const Users = () => {
         </Form>
       </AuthModal>
 
-      {/*delete modal*/}
-      <AuthModal
-        title="Are you sure?"
+      <ConfirmDeleteModal
         isOpen={isOpenDeleteModal}
-        cancel={toggleDelete}
-        // save={deleteDisplaytype}
-        okType={"danger"}
-        isFooter={"none"}
-      >
-        <h3 align="center">You will not be able to recover this!</h3>
-        <div className="d-flex justify-content-end">
-          <Button type="text" htmlType="button" onClick={() => toggleDelete()}>
-            Cancel
-          </Button>
-          <Button
-            onClick={deleteUser}
-            loading={deleteDataLoading}
-            className="ant-btn-danger"
-            htmlType="submit"
-          >
-            Delete
-          </Button>
-        </div>
-      </AuthModal>
+        onCancel={() => toggleDelete()}
+        onConfirm={deleteUser}
+        loading={deleteDataLoading}
+      />
     </div>
   );
 };

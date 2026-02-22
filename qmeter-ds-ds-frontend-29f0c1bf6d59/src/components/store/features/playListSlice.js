@@ -73,11 +73,11 @@ const deletePlayListData = createAsyncThunk(
   },
 );
 const publishPlayList = createAsyncThunk("publishPlayList", async (id) => {
-  const response = await axiosClient.post(`playlist/publish/publish/${id}/`);
+  const response = await axiosClient.post(`playlist/playlist/${id}/publish/`);
   return response.data;
 });
 const discardPlayList = createAsyncThunk("discardPlayList", async (id) => {
-  const response = await axiosClient.post(`playlist/publish/discard/${id}/`);
+  const response = await axiosClient.post(`playlist/playlist/${id}/discard/`);
   return response.data;
 });
 const duplicatePlayList = createAsyncThunk(

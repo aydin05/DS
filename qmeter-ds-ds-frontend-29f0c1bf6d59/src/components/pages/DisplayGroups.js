@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Button,
   Dropdown,
   Form,
   Input,
-  Menu,
   message,
   Radio,
   Select,
@@ -20,6 +19,7 @@ import {
   updateDisplayGroupData,
 } from "../store/features/displayGroupsSlice";
 import { AuthModal } from "../SubComponents/AuthModal";
+import ConfirmDeleteModal from "../SubComponents/ConfirmDeleteModal";
 import { useDispatch, useSelector } from "react-redux";
 import { SubHeader } from "../SubComponents/SubHeader";
 import { fetchScheduleData } from "../store/features/scheduleSlice";
@@ -60,16 +60,16 @@ export const DisplayGroups = () => {
     dispatch(toggleModal());
     setRadio("1");
   };
-  const toggleDelete = (id = null) => dispatch(toggleDeleteModal(id));
+  const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id)), [dispatch]);
 
-  const finish = (values) => {
+  const finish = useCallback((values) => {
     if (formValue.id) {
       values.id = formValue.id;
       dispatch(updateDisplayGroupData(values));
     } else dispatch(postDisplayGroupData(values));
-  };
-  const deleteDisplayType = () =>
-    dispatch(deleteDisplayGroupData(deleteDisplayGroupId));
+  }, [formValue.id, dispatch]);
+  const deleteDisplayType = useCallback(() =>
+    dispatch(deleteDisplayGroupData(deleteDisplayGroupId)), [deleteDisplayGroupId, dispatch]);
   useEffect(() => {
     if (requestStatus) {
       switch (requestStatus) {
@@ -105,7 +105,7 @@ export const DisplayGroups = () => {
     dispatch(fetchBranchData({ page: 1 }));
     dispatch(fetchDisplayTypeData({ page: 1 }));
   }, []);
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: "#",
       dataIndex: "id",
@@ -184,7 +184,7 @@ export const DisplayGroups = () => {
         </Dropdown>
       ),
     },
-  ];
+  ], [dispatch, toggleDelete, playlistSlice, scheduleSlice]);
 
   return (
     <div>
@@ -311,31 +311,12 @@ export const DisplayGroups = () => {
         </Form>
       </AuthModal>
 
-      {/*delete modal*/}
-
-      <AuthModal
-        title="Are you sure?"
+      <ConfirmDeleteModal
         isOpen={isOpenDeleteModal}
-        cancel={toggleDelete}
-        // save={deleteDisplaytype}
-        okType={"danger"}
-        isFooter={"none"}
-      >
-        <h3 align="center">You will not be able to recover this!</h3>
-        <div className="d-flex justify-content-end">
-          <Button type="text" htmlType="button" onClick={() => toggleDelete()}>
-            Cancel
-          </Button>
-          <Button
-            onClick={deleteDisplayType}
-            loading={deleteDataLoading}
-            className="ant-btn-danger"
-            htmlType="submit"
-          >
-            Delete
-          </Button>
-        </div>
-      </AuthModal>
+        onCancel={() => toggleDelete()}
+        onConfirm={deleteDisplayType}
+        loading={deleteDataLoading}
+      />
     </div>
   );
 };

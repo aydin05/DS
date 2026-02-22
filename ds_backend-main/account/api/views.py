@@ -2,7 +2,6 @@ from rest_framework import permissions, status, generics,views
 from account.api.serializers import ForgetPasswordRequestSerializer, RedirectUrlParamsSerializer, RegistrationSerializer, LoginSerializer, ResetPasswordSerializer, UserSerializer,CountrySerializer,CompanySerializer,CompanyUserSerializer
 from django.contrib.auth import get_user_model
 from account.tools.token import get_tokens, account_activation_token
-from tools.custom_filter_tools import get_or_none
 from rest_framework.response import Response
 from knox.auth import TokenAuthentication
 from django.utils.translation import gettext_lazy as _
@@ -26,7 +25,7 @@ class RegistrationAPIView(generics.GenericAPIView):
 
     def post(self, request):
         email = request.data.get("email")
-        if get_or_none(User, email=str(email).lower(), is_active=False):
+        if User.objects.filter(email=str(email).lower(), is_active=False).exists():
             response_data = {
                 "message": _("This user is not active. Please activate your account"),
                 "action": "registration",
@@ -114,7 +113,9 @@ class ForgetPasswordRequestAPIView(generics.GenericAPIView):
         redirect_url = params_serializer.data.get('redirect_url')
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = get_or_none(User, email=serializer.data['email'])
+        user = User.objects.filter(email=serializer.data['email']).first()
+        if not user:
+            return Response(data={"message": _("No account found with this email"), "action": self.response_action}, status=status.HTTP_400_BAD_REQUEST)
         mail_subject = _('Reset your password')
         template = 'email/password_reset_email_api.html'
         tokens = get_tokens(user)

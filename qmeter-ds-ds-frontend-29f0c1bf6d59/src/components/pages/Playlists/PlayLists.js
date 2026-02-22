@@ -1,6 +1,7 @@
 import { SubHeader } from "../../SubComponents/SubHeader";
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { AuthModal } from "../../SubComponents/AuthModal";
+import ConfirmDeleteModal from "../../SubComponents/ConfirmDeleteModal";
 import { Button, Dropdown, Form, Input, message, Select } from "antd";
 import tableAction from "../../../assets/images/table-action.svg";
 import { useNavigate } from "react-router-dom";
@@ -45,17 +46,17 @@ export const PlayLists = () => {
     postError,
   } = useSelector((state) => state.playListSlice);
   const displayTypeSlice = useSelector((state) => state.displayTypeSlice);
-  const toggleEdit = () => dispatch(toggleModal());
-  const toggleDelete = (id = null) => dispatch(toggleDeleteModal(id));
+  const toggleEdit = useCallback(() => dispatch(toggleModal()), [dispatch]);
+  const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id)), [dispatch]);
   const [duplicateForm] = Form.useForm();
 
-  const finish = (values) => {
+  const finish = useCallback((values) => {
     if (formValue.id) {
       values.id = formValue.id;
       dispatch(updatePlayListData(values));
     } else dispatch(postPlayListData(values));
-  };
-  const deletePlaylist = () => dispatch(deletePlayListData(deletedPlaylistId));
+  }, [formValue.id, dispatch]);
+  const deletePlaylist = useCallback(() => dispatch(deletePlayListData(deletedPlaylistId)), [deletedPlaylistId, dispatch]);
   /*side effects*/
   useEffect(() => {
     // dispatch(fetchPlayListData({ page: 1 }));
@@ -97,24 +98,24 @@ export const PlayLists = () => {
     }
   }, [postError]);
 
-  const publish = (id) =>
+  const publish = useCallback((id) =>
     dispatch(publishPlayList(id))
       .unwrap()
       .then(() => {
         dispatch(fetchPlayListData({ page: 1 }));
         message.success("Published!");
-      });
-  const discard = (id) =>
+      }), [dispatch]);
+  const discard = useCallback((id) =>
     dispatch(discardPlayList(id))
       .unwrap()
       .then(() => {
         dispatch(fetchPlayListData({ page: 1 }));
         message.success("Discarded!");
-      });
+      }), [dispatch]);
 
-  const handleDuplicate = (id) => {
+  const handleDuplicate = useCallback((id) => {
     dispatch(duplicatePlayList(id));
-  };
+  }, [dispatch]);
 
   const finishDuplicateRename = (values) => {
     if (duplicatedPlaylist) {
@@ -134,7 +135,7 @@ export const PlayLists = () => {
     }
   }, [duplicatedPlaylist, isOpenDuplicateModal]);
 
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: "#",
       dataIndex: "id",
@@ -214,7 +215,7 @@ export const PlayLists = () => {
         </Dropdown>
       ),
     },
-  ];
+  ], [dispatch, navigate, toggleDelete, publish, discard, handleDuplicate]);
   return (
     <div>
       <SubHeader
@@ -306,29 +307,12 @@ export const PlayLists = () => {
           </div>
         </Form>
       </AuthModal>
-      {/*delete modal*/}
-      <AuthModal
-        title="Are you sure?"
+      <ConfirmDeleteModal
         isOpen={isOpenDeleteModal}
-        cancel={toggleDelete}
-        okType={"danger"}
-        isFooter={"none"}
-      >
-        <h3 align="center">You will not be able to recover this!</h3>
-        <div className="d-flex justify-content-end">
-          <Button type="text" htmlType="button" onClick={() => toggleDelete()}>
-            Cancel
-          </Button>
-          <Button
-            onClick={deletePlaylist}
-            loading={deleteDataLoading}
-            className="ant-btn-danger"
-            htmlType="submit"
-          >
-            Delete
-          </Button>
-        </div>
-      </AuthModal>
+        onCancel={() => toggleDelete()}
+        onConfirm={deletePlaylist}
+        loading={deleteDataLoading}
+      />
     </div>
   );
 };

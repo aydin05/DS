@@ -1,27 +1,38 @@
-import { DisplayTypes } from "../pages/DisplayTypes";
-import { DisplayGroups } from "../pages/DisplayGroups";
-import { Branches } from "../pages/Branches/Branches";
-import { Schedules } from "../pages/Schedule/Schedules";
-import { Users } from "../pages/Users";
-import { PlayLists } from "../pages/Playlists/PlayLists";
-import PlaylistEditor from "../pages/Playlists/PlaylistEditor";
-import { Roles } from "../pages/Roles";
-import BranchManage from "../pages/Branches/BranchManage";
-import ManageSchedule from "../pages/Schedule/ManageSchedule";
-import { DeviceStatus } from "../pages/DeviceStatus/DeviceStatus";
-import DeviceStatusView from "../pages/DeviceStatus/DeviceStatusView";
-import { EmailSettings } from "../pages/Settings/EmailSettings";
+import React, { lazy, Suspense } from "react";
+import { Spin } from "antd";
+
+const DisplayTypes = lazy(() => import("../pages/DisplayTypes").then((m) => ({ default: m.DisplayTypes })));
+const DisplayGroups = lazy(() => import("../pages/DisplayGroups").then((m) => ({ default: m.DisplayGroups })));
+const Branches = lazy(() => import("../pages/Branches/Branches").then((m) => ({ default: m.Branches })));
+const BranchManage = lazy(() => import("../pages/Branches/BranchManage"));
+const Schedules = lazy(() => import("../pages/Schedule/Schedules").then((m) => ({ default: m.Schedules })));
+const ManageSchedule = lazy(() => import("../pages/Schedule/ManageSchedule"));
+const DeviceStatus = lazy(() => import("../pages/DeviceStatus/DeviceStatus").then((m) => ({ default: m.DeviceStatus })));
+const DeviceStatusView = lazy(() => import("../pages/DeviceStatus/DeviceStatusView"));
+const Users = lazy(() => import("../pages/Users").then((m) => ({ default: m.Users })));
+const Roles = lazy(() => import("../pages/Roles").then((m) => ({ default: m.Roles })));
+const PlayLists = lazy(() => import("../pages/Playlists/PlayLists").then((m) => ({ default: m.PlayLists })));
+const PlaylistEditor = lazy(() => import("../pages/Playlists/PlaylistEditor"));
+const EmailSettings = lazy(() => import("../pages/Settings/EmailSettings").then((m) => ({ default: m.EmailSettings })));
+
+const Fallback = (
+  <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 200 }}>
+    <Spin size="large" />
+  </div>
+);
+
+const wrap = (element) => <Suspense fallback={Fallback}>{element}</Suspense>;
 
 export const routes = {
   admin: [
     {
       path: "/",
-      element: <DisplayTypes />,
+      element: wrap(<DisplayTypes />),
       permission: "display_tpyes_management",
     },
     {
       path: "/display-groups",
-      element: <DisplayGroups />,
+      element: wrap(<DisplayGroups />),
       permission: "display_group_management",
     },
     {
@@ -29,11 +40,11 @@ export const routes = {
       children: [
         {
           path: "/branches",
-          element: <Branches />,
+          element: wrap(<Branches />),
         },
         {
           path: "/branches/:id",
-          element: <BranchManage />,
+          element: wrap(<BranchManage />),
         },
       ],
       permission: "branch_management",
@@ -43,11 +54,11 @@ export const routes = {
       children: [
         {
           path: "/schedules",
-          element: <Schedules />,
+          element: wrap(<Schedules />),
         },
         {
           path: "/schedules/:id",
-          element: <ManageSchedule />,
+          element: wrap(<ManageSchedule />),
         },
       ],
       permission: "schedule_management",
@@ -57,50 +68,42 @@ export const routes = {
       children: [
         {
           path: "/device-status",
-          element: <DeviceStatus />,
+          element: wrap(<DeviceStatus />),
         },
         {
           path: "/device-status/:id",
-          element: <DeviceStatusView />,
+          element: wrap(<DeviceStatusView />),
         },
       ],
       permission: "device_status_management",
     },
     {
       path: "/user",
-      element: <Users />,
+      element: wrap(<Users />),
       permission: "user_management",
     },
     {
       path: "/roles",
-      element: <Roles />,
+      element: wrap(<Roles />),
       permission: "user_management",
     },
-    // {
-    //     path: "/my-company",
-    //     element: <MyCompany/>,
-    // },
     {
       path: "/playlists",
       children: [
         {
           path: "/playlists",
-          element: <PlayLists />,
+          element: wrap(<PlayLists />),
         },
         {
           path: "/playlists/:id",
-          element: <PlaylistEditor />,
+          element: wrap(<PlaylistEditor />),
         },
-        // {
-        //     path: "/playlists/preview/:id",
-        //     element: <Preview/>
-        // }
       ],
       permission: "playlist_management",
     },
     {
       path: "/settings/email",
-      element: <EmailSettings />,
+      element: wrap(<EmailSettings />),
       permission: "settings_management",
     },
   ],

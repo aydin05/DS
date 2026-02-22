@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useCallback, useEffect, useMemo } from "react";
 import { 
   Button, 
   Dropdown, 
@@ -23,6 +23,7 @@ import { AuthModal } from "../SubComponents/AuthModal";
 import { useDispatch, useSelector } from "react-redux";
 import { SubHeader } from "../SubComponents/SubHeader";
 import CustomDataTable from "../consts/CustomDataTable";
+import ConfirmDeleteModal from "../SubComponents/ConfirmDeleteModal";
 
 export const DisplayTypes = () => {
   const [form] = Form.useForm();
@@ -43,17 +44,17 @@ export const DisplayTypes = () => {
     postError,
   } = useSelector((state) => state.displayTypeSlice);
 
-  const toggleEdit = () => dispatch(toggleModal());
-  const toggleDelete = (id = null) => dispatch(toggleDeleteModal(id));
+  const toggleEdit = useCallback(() => dispatch(toggleModal()), [dispatch]);
+  const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id)), [dispatch]);
 
-  const finish = (values) => {
+  const finish = useCallback((values) => {
     if (formValue.id) {
       values.id = formValue.id;
       dispatch(updateDisplayTypeData(values));
     } else dispatch(postDisplayTypeData(values));
-  };
-  const deleteDisplayType = () =>
-    dispatch(deleteDisplayTypeData(deleteDisplayTypeId));
+  }, [formValue.id, dispatch]);
+  const deleteDisplayType = useCallback(() =>
+    dispatch(deleteDisplayTypeData(deleteDisplayTypeId)), [deleteDisplayTypeId, dispatch]);
   useEffect(() => {
     if (requestStatus) {
       switch (requestStatus) {
@@ -85,7 +86,7 @@ export const DisplayTypes = () => {
   // useEffect(() => {
   //   dispatch(fetchDisplayTypeData({ page: 1 }));
   // }, []);
-  const columns = [
+  const columns = useMemo(() => [
     {
       title: "#",
       dataIndex: "id",
@@ -144,7 +145,7 @@ export const DisplayTypes = () => {
         </Dropdown>
       ),
     },
-  ];
+  ], [dispatch, toggleDelete]);
 
   return (
     <div>
@@ -219,30 +220,12 @@ export const DisplayTypes = () => {
         </Form>
       </AuthModal>
 
-      {/*delete modal*/}
-
-      <AuthModal
-        title="Are you sure?"
+      <ConfirmDeleteModal
         isOpen={isOpenDeleteModal}
-        cancel={toggleDelete}
-        okType={"danger"}
-        isFooter={"none"}
-      >
-        <h3 align="center">You will not be able to recover this!</h3>
-        <div className="d-flex justify-content-end">
-          <Button type="text" htmlType="button" onClick={() => toggleDelete()}>
-            Cancel
-          </Button>
-          <Button
-            onClick={deleteDisplayType}
-            loading={deleteDataLoading}
-            className="ant-btn-danger"
-            htmlType="submit"
-          >
-            Delete
-          </Button>
-        </div>
-      </AuthModal>
+        onCancel={() => toggleDelete()}
+        onConfirm={deleteDisplayType}
+        loading={deleteDataLoading}
+      />
     </div>
   );
 };

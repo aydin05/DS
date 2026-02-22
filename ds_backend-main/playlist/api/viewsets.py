@@ -1,5 +1,4 @@
 import requests
-from django.shortcuts import get_object_or_404
 from display.models import Display
 from playlist.models import *
 from rest_framework import permissions
@@ -35,6 +34,31 @@ class PlaylistViewSet(MultiSerializerViewSet):
     def get_queryset(self):
         queryset = super().get_queryset().order_by('-created_at')
         return queryset.filter(company = self.request.user.company)
+
+    @action(detail=True, methods=['post'])
+    def publish(self, request, pk=None):
+        playlist = self.get_object()
+        if playlist.extra_fields == []:
+            return Response({"error": "You must add slides to this playlist"}, status=400)
+        playlist.slide_set.all().delete()
+        for slide in playlist.extra_fields:
+            slide['playlist'] = playlist.id
+            slide['company'] = request.user.company.id
+            serializer = SlideCreateSerializer(data=slide, context={'request': request, 'items': slide['items']})
+            if serializer.is_valid():
+                serializer.save(company=request.user.company)
+                continue
+            return Response(serializer.errors, status=400)
+        playlist.extra_fields = []
+        playlist.save()
+        return Response({"message": "Playlist published"})
+
+    @action(detail=True, methods=['post'])
+    def discard(self, request, pk=None):
+        playlist = self.get_object()
+        playlist.extra_fields = []
+        playlist.save()
+        return Response({"message": "Playlist discarded"})
 
     @action(detail=True, methods=['post'])
     @transaction.atomic
@@ -138,7 +162,9 @@ class SlideApiView(APIView):
 
     @transaction.atomic
     def post(self, request, *args, **kwargs):
-        playlist = get_object_or_404(Playlist, pk=kwargs['id'])
+        playlist = Playlist.objects.filter(pk=kwargs['id'], company=request.user.company).first()
+        if not playlist:
+            return Response({"error": "Playlist not found"}, status=404)
         response_data = []
 
         if not isinstance(self.request.data, list):
@@ -217,7 +243,9 @@ class SlideApiView(APIView):
         return Response(response_data)
     
     def get(self, request, *args, **kwargs):
-        playlist = get_object_or_404(Playlist, pk=kwargs['id'])
+        playlist = Playlist.objects.filter(pk=kwargs['id'], company=request.user.company).first()
+        if not playlist:
+            return Response({"error": "Playlist not found"}, status=404)
         playlist_data = PlaylistSerializer(playlist, context={'request': request}).data
         if playlist_data['is_update'] == True:
             return Response(playlist.extra_fields)
@@ -236,7 +264,9 @@ class PlaylistDetailApiView(APIView):
         if request.user and request.user.is_authenticated:
             id = request.GET.get('id')
             display_type = request.GET.get('display_type')
-            playlist = get_object_or_404(Playlist, pk=id)
+            playlist = Playlist.objects.filter(pk=id).first()
+            if not playlist:
+                return Response({"error": "Playlist not found"}, status=404)
             list_of_data = copy.deepcopy(playlist.extra_fields)
             for data in list_of_data:
                 for item in data['items']:
@@ -306,37 +336,6 @@ class PlaylistDetailApiView(APIView):
 
 
 
-class PublishApiView(APIView):
-    queryset = Playlist.objects.all()
-    serializer_class = PlaylistDetailSerializer
-
-    def post(self, request, *args, **kwargs):
-        id = kwargs['id']
-        method = kwargs['method']
-        playlist = get_object_or_404(Playlist, pk=id)
-        if method== 'publish':
-            if playlist.extra_fields == []:
-                return Response({"error": "You must add slides to this playlist"}, status=400)
-            playlist.slide_set.all().delete()
-            response_data = []
-            for slide in playlist.extra_fields:
-                slide['playlist'] = playlist.id
-                slide['company'] = self.request.user.company.id
-                serializer = SlideCreateSerializer(data=slide, context={'request':request,'items':slide['items']})
-                if serializer.is_valid():
-                    serializer.save(company=self.request.user.company)
-                    # response_data.append(SlideSerializer(serializer.instance, context={'request': request,'display_type':playlist.default_display_type}).data)
-                    continue
-                return Response(serializer.errors)
-            playlist.extra_fields = []
-            playlist.save()
-            return Response({"message":"Playlist published" })
-        elif method == 'discard':
-            playlist.extra_fields = []
-            playlist.save()
-            return Response({"message":"Playlist discarded" })
-        else:
-            return Response({"error": "Invalid method"}, status=400)
 
 
 class TabloTicketApiView(APIView):
