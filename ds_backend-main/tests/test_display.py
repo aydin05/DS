@@ -100,12 +100,16 @@ class DisplayCRUDTests(TestCase):
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
 
     def test_create_display(self):
+        from tests.factories import create_playlist, create_display_group
+        pl = create_playlist(self.company, self.dt, name="Disp PL")
+        dg = create_display_group(self.company, name="Disp DG", playlist=pl)
         data = {
             "name": "New Display",
             "username": "newdisp",
             "password": "pass123",
             "display_type": self.dt.id,
             "branch": self.branch.id,
+            "display_group": dg.id,
         }
         resp = self.client.post(self.base_url, data, format="json", **auth_header(self.token))
         self.assertEqual(resp.status_code, status.HTTP_201_CREATED)

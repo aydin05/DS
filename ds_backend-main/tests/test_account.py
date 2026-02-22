@@ -188,6 +188,7 @@ class UserCRUDTests(TestCase):
         user = create_user(self.company, email="upd@test.com")
         data = {"fullname": "Updated Name", "email": "upd@test.com",
                 "phone_number": "999", "password": "StrongP@ss1",
+                "password_confirmation": "StrongP@ss1",
                 "role": [self.role_group.id], "branch": [self.branch.id]}
         resp = self.client.put(f"{self.base_url}{user.id}/", data, format="json", **auth_header(self.token))
         self.assertEqual(resp.status_code, status.HTTP_200_OK)

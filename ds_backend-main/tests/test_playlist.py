@@ -237,6 +237,7 @@ class SlideApiViewTests(TestCase):
                         "type": self.wt.id,
                         "top": 0, "left": 0, "width": 100, "height": 100,
                         "index": 0, "attr": {},
+                        "display_types": [{"id": self.dt.id, "top": 0, "left": 0, "width": 100, "height": 100}],
                     }
                 ],
             }
