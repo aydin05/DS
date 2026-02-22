@@ -6,7 +6,6 @@ from display.api.permissions import DisplayTpyePermission,DisplayGroupPermission
 from core.api.viewsets import MultiSerializerViewSet
 from rest_framework.generics import ListAPIView
 from rest_framework import filters
-from django.shortcuts import get_object_or_404
 from playlist.api.serializers import PlaylistDetailSerializer
 from rest_framework.response import Response
 from playlist.models import Playlist
@@ -86,7 +85,9 @@ class DisplayDetailApiView(ListAPIView):
                 playlist_id = display.schedule.default_playlist.id
             else: 
                 return Response({"error": "Playlist not found please assign playlist display or others"}, status=400)
-            playlist = get_object_or_404(Playlist, id = playlist_id)
+            playlist = Playlist.objects.filter(id=playlist_id).first()
+            if not playlist:
+                return Response({"error": "Playlist not found"}, status=404)
             # Always serve published Slide objects, NOT draft extra_fields.
             # Draft changes in extra_fields should only appear after user clicks Publish.
             playlist.slides = None

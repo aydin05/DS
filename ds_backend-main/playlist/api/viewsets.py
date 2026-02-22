@@ -151,7 +151,10 @@ class SchedulePlaylistViewSet(MultiSerializerViewSet):
     model = SchedulePlaylist
 
     def get_queryset(self):
-        queryset = SchedulePlaylist.objects.filter(schedule_id=self.kwargs['schedule_id'])
+        queryset = SchedulePlaylist.objects.filter(
+            schedule_id=self.kwargs['schedule_id'],
+            schedule__company=self.request.user.company,
+        )
         return queryset
 
 
@@ -196,13 +199,16 @@ class SlideApiView(APIView):
                         SlideSerializer(serializer.instance, context={'request': request, "display_type": display_type_obj}).data
                     )
                     continue
-                return Response(serializer.errors)
+                return Response(serializer.errors, status=400)
 
         else:
             request_data = self.request.data
             for data in request_data:
                 for item in data['items']:
-                    item['type_content'] = WidgetType.objects.filter(id=item['type']).first().name
+                    widget = WidgetType.objects.filter(id=item['type']).first()
+                    if not widget:
+                        return Response({"error": f"WidgetType with id {item['type']} not found"}, status=400)
+                    item['type_content'] = widget.name
 
                     if item['type_content'] == "table":
                         item['columns'] = data.get("columns", [])
@@ -264,7 +270,7 @@ class PlaylistDetailApiView(APIView):
         if request.user and request.user.is_authenticated:
             id = request.GET.get('id')
             display_type = request.GET.get('display_type')
-            playlist = Playlist.objects.filter(pk=id).first()
+            playlist = Playlist.objects.filter(pk=id, company=request.user.company).first()
             if not playlist:
                 return Response({"error": "Playlist not found"}, status=404)
             list_of_data = copy.deepcopy(playlist.extra_fields)

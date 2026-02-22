@@ -159,17 +159,15 @@ class ResetPasswordAPIView(generics.GenericAPIView):
         uid = serializer.data['uidb64']
         token = serializer.data['token']
         self.user = self.get_user(uid)
-        if self.user:
-            if not account_activation_token.check_token(self.user, token):
-                response_data = {"action": self.response_action, "message": _('Invalid or expired token')}
-                return Response(data=response_data, status=status.HTTP_400_BAD_REQUEST)
-            password = serializer.data.get('password')
-            if password is not None:
-                self.user.set_password(password)
-                self.user.save()
-            self.message = _('Your password changed, Please log in')
-        else:
-            self.message = _('User not found')
-
-        response_data = {"action": self.response_action, "message": self.message}
+        if not self.user:
+            response_data = {"action": self.response_action, "message": _('User not found')}
+            return Response(data=response_data, status=status.HTTP_400_BAD_REQUEST)
+        if not account_activation_token.check_token(self.user, token):
+            response_data = {"action": self.response_action, "message": _('Invalid or expired token')}
+            return Response(data=response_data, status=status.HTTP_400_BAD_REQUEST)
+        password = serializer.data.get('password')
+        if password is not None:
+            self.user.set_password(password)
+            self.user.save()
+        response_data = {"action": self.response_action, "message": _('Your password changed, Please log in')}
         return Response(data=response_data, status=status.HTTP_200_OK)
