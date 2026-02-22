@@ -1,13 +1,13 @@
 import React, { useEffect } from "react";
-import {
-  Button,
-  Dropdown,
-  Form,
-  Input,
-  InputNumber,
-  Menu,
-  message,
-  Table,
+import { 
+  Button, 
+  Dropdown, 
+  Form, 
+  Input, 
+  InputNumber, 
+  message, 
+  Table, 
+  Select 
 } from "antd";
 import tableAction from "../../assets/images/table-action.svg";
 import {
@@ -118,24 +118,22 @@ export const DisplayTypes = () => {
       key: "action",
       render: (text, row) => (
         <Dropdown
-          overlay={
-            <Menu
-              items={[
-                {
-                  label: (
-                    <a onClick={() => dispatch(getDisplayTypeDataById(row.id))}>
-                      Edit
-                    </a>
-                  ),
-                  key: "0",
-                },
-                {
-                  label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
-                  key: "1",
-                },
-              ]}
-            />
-          }
+          menu={{
+            items: [
+              {
+                label: (
+                  <a onClick={() => dispatch(getDisplayTypeDataById(row.id))}>
+                    Edit
+                  </a>
+                ),
+                key: "0",
+              },
+              {
+                label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
+                key: "1",
+              },
+            ],
+          }}
           trigger={["click"]}
         >
           <a onClick={(e) => e.preventDefault()}>

@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Button, Dropdown, Form, Input, Menu, message, Select } from "antd";
+import { Button, Dropdown, Form, Input, message, Select } from "antd";
 import tableAction from "../../../assets/images/table-action.svg";
 import { SubHeader } from "../../SubComponents/SubHeader";
 import { AuthModal } from "../../SubComponents/AuthModal";
@@ -120,36 +120,30 @@ export const Schedules = () => {
       key: "action",
       render: (text, row) => (
         <Dropdown
-          overlay={
-            <Menu
-              items={[
-                {
-                  label: (
-                    <a onClick={() => navigate("/schedules/" + row.id)}>
-                      Manage
-                    </a>
-                  ),
-                  key: "0",
-                },
-                {
-                  label: (
-                    <a
-                      onClick={() =>
-                        dispatch(getScheduleDataById({ id: row.id }))
-                      }
-                    >
-                      Edit
-                    </a>
-                  ),
-                  key: "1",
-                },
-                {
-                  label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
-                  key: "2",
-                },
-              ]}
-            />
-          }
+          menu={{
+            items: [
+              {
+                label: (
+                  <a onClick={() => navigate("/schedules/" + row.id)}>
+                    Manage
+                  </a>
+                ),
+                key: "0",
+              },
+              {
+                label: (
+                  <a onClick={() => dispatch(getScheduleDataById({ id: row.id }))}>
+                    Edit
+                  </a>
+                ),
+                key: "1",
+              },
+              {
+                label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
+                key: "2",
+              },
+            ],
+          }}
           trigger={["click"]}
         >
           <a onClick={(e) => e.preventDefault()}>

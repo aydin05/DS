@@ -6,7 +6,6 @@ import {
   Dropdown,
   Form,
   Input,
-  Menu,
   message,
   Row,
   Select,
@@ -253,20 +252,18 @@ export const Users = () => {
       key: "action",
       render: (text, row) => (
         <Dropdown
-          overlay={
-            <Menu
-              items={[
-                {
-                  label: <a onClick={() => getuserDataById(row.id)}>Edit</a>,
-                  key: "0",
-                },
-                {
-                  label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
-                  key: "1",
-                },
-              ]}
-            />
-          }
+          menu={{
+            items: [
+              {
+                label: <a onClick={() => getuserDataById(row.id)}>Edit</a>,
+                key: "0",
+              },
+              {
+                label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
+                key: "1",
+              },
+            ],
+          }}
           trigger={["click"]}
         >
           <a onClick={(e) => e.preventDefault()}>

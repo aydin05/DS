@@ -224,35 +224,28 @@ export const RecipientLists = () => {
       render: (_, row) => (
         <Dropdown
           trigger={["click"]}
-          overlay={
-            <Menu
-              items={[
-                {
-                  key: "manage",
-                  label: (
-                    <span onClick={() => openDetail(row)}>
-                      Manage Recipients
-                    </span>
-                  ),
-                },
-                {
-                  key: "edit",
-                  label: <span onClick={() => onEdit(row)}>Edit</span>,
-                },
-                {
-                  key: "delete",
-                  label: (
-                    <span
-                      style={{ color: "red" }}
-                      onClick={() => onDelete(row.id)}
-                    >
-                      Delete
-                    </span>
-                  ),
-                },
-              ]}
-            />
-          }
+          menu={{
+            items: [
+              {
+                key: "manage",
+                label: (
+                  <span onClick={() => openDetail(row)}>Manage Recipients</span>
+                ),
+              },
+              {
+                key: "edit",
+                label: <span onClick={() => onEdit(row)}>Edit</span>,
+              },
+              {
+                key: "delete",
+                label: (
+                  <span style={{ color: "red" }} onClick={() => onDelete(row.id)}>
+                    Delete
+                  </span>
+                ),
+              },
+            ],
+          }}
         >
           <Button type="text">
             <img src={tableAction} alt="actions" />

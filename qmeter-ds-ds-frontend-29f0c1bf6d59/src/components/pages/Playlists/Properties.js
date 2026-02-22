@@ -344,23 +344,14 @@ const Properties = ({ size }) => {
           />
           {selectedItem.videoDurations.length > 0 && (
             <Dropdown
-              overlay={
-                <Menu
-                  onClick={({ key }) =>
-                    updateSlideDurationBgColor(
-                      "duration",
-                      Number(key.split(" ")[0]),
-                    )
-                  }
-                  items={selectedItem.videoDurations.map((item, index) => {
-                    return {
-                      label: `${item.duration} sec
-                                    (${item.name?.slice(item.name.indexOf("company_file/") + 13)})`,
-                      key: item.duration + " " + index,
-                    };
-                  })}
-                />
-              }
+              menu={{
+                onClick: ({ key }) =>
+                  updateSlideDurationBgColor("duration", Number(key.split(" ")[0])),
+                items: selectedItem.videoDurations.map((item, index) => ({
+                  label: `${item.duration} sec (${item.name?.slice(item.name.indexOf("company_file/") + 13)})`,
+                  key: item.duration + " " + index,
+                })),
+              }}
             >
               <a onClick={(e) => e.preventDefault()}>
                 <Space>

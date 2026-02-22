@@ -5,7 +5,6 @@ import {
   Dropdown,
   Form,
   Input,
-  Menu,
   message,
   Select,
 } from "antd";
@@ -123,40 +122,30 @@ export const Branches = () => {
       key: "action",
       render: (text, row) => (
         <Dropdown
-          overlay={
-            <Menu
-              items={[
-                {
-                  label: (
-                    <a
-                      onClick={() => {
-                        navigate(`/branches/${row.id}`);
-                      }}
-                    >
-                      Manage
-                    </a>
-                  ),
-                  key: "0",
-                },
-                {
-                  label: (
-                    <a
-                      onClick={() =>
-                        dispatch(getBranchDataById({ id: row.id }))
-                      }
-                    >
-                      Edit
-                    </a>
-                  ),
-                  key: "1",
-                },
-                {
-                  label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
-                  key: "2",
-                },
-              ]}
-            />
-          }
+          menu={{
+            items: [
+              {
+                label: (
+                  <a onClick={() => navigate(`/branches/${row.id}`)}>
+                    Manage
+                  </a>
+                ),
+                key: "0",
+              },
+              {
+                label: (
+                  <a onClick={() => dispatch(getBranchDataById({ id: row.id }))}>
+                    Edit
+                  </a>
+                ),
+                key: "1",
+              },
+              {
+                label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
+                key: "2",
+              },
+            ],
+          }}
           trigger={["click"]}
         >
           <a onClick={(e) => e.preventDefault()}>

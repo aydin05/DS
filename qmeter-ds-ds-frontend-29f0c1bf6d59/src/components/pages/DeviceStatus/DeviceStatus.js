@@ -138,20 +138,18 @@ export const DeviceStatus = () => {
       render: (_, row) => (
         <Dropdown
           trigger={["click"]}
-          overlay={
-            <Menu
-              items={[
-                {
-                  key: "view",
-                  label: (
-                    <span onClick={() => navigate(`/device-status/${row.id}`)}>
-                      View
-                    </span>
-                  ),
-                },
-              ]}
-            />
-          }
+          menu={{
+            items: [
+              {
+                key: "view",
+                label: (
+                  <span onClick={() => navigate(`/device-status/${row.id}`)}>
+                    View
+                  </span>
+                ),
+              },
+            ],
+          }}
         >
           <Button type="text">
             <img src={tableAction} alt="actions" />

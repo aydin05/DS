@@ -1,7 +1,7 @@
 import { SubHeader } from "../../SubComponents/SubHeader";
 import React, { useEffect } from "react";
 import { AuthModal } from "../../SubComponents/AuthModal";
-import { Button, Dropdown, Form, Input, Menu, message, Select } from "antd";
+import { Button, Dropdown, Form, Input, message, Select } from "antd";
 import tableAction from "../../../assets/images/table-action.svg";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -168,54 +168,42 @@ export const PlayLists = () => {
       key: "action",
       render: (text, row) => (
         <Dropdown
-          overlay={
-            <Menu
-              items={[
-                {
-                  label: (
-                    <a onClick={() => navigate(`/playlists/${row.id}`)}>
-                      Manage{" "}
-                    </a>
-                  ),
-                  key: "0",
-                },
-                {
-                  label: <a onClick={() => publish(row.id)}>Publish </a>,
-                  key: "1",
-                  disabled: !row.is_update,
-                },
-                {
-                  label: <a onClick={() => discard(row.id)}>Discard </a>,
-                  key: "2",
-                  disabled: !row.is_update,
-                },
-                {
-                  label: (
-                    <a
-                      onClick={() =>
-                        dispatch(getPlayListDataById({ id: row.id }))
-                      }
-                    >
-                      Edit
-                    </a>
-                  ),
-                  key: "3",
-                },
-                {
-                  label: (
-                    <a onClick={() => handleDuplicate(row.id)}>
-                      Duplicate
-                    </a>
-                  ),
-                  key: "4",
-                },
-                {
-                  label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
-                  key: "5",
-                },
-              ]}
-            />
-          }
+          menu={{
+            items: [
+              {
+                label: (
+                  <a onClick={() => navigate(`/playlists/${row.id}`)}>Manage</a>
+                ),
+                key: "0",
+              },
+              {
+                label: <a onClick={() => publish(row.id)}>Publish</a>,
+                key: "1",
+                disabled: !row.is_update,
+              },
+              {
+                label: <a onClick={() => discard(row.id)}>Discard</a>,
+                key: "2",
+                disabled: !row.is_update,
+              },
+              {
+                label: (
+                  <a onClick={() => dispatch(getPlayListDataById({ id: row.id }))}>
+                    Edit
+                  </a>
+                ),
+                key: "3",
+              },
+              {
+                label: <a onClick={() => handleDuplicate(row.id)}>Duplicate</a>,
+                key: "4",
+              },
+              {
+                label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
+                key: "5",
+              },
+            ],
+          }}
           trigger={["click"]}
         >
           <a onClick={(e) => e.preventDefault()}>

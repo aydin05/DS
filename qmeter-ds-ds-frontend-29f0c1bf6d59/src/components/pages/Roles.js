@@ -3,13 +3,14 @@ import {
   Button,
   Checkbox,
   Col,
+  Divider,
   Dropdown,
   Form,
   Input,
-  Menu,
   message,
   Row,
   Spin,
+  Select,
 } from "antd";
 import tableAction from "../../assets/images/table-action.svg";
 import { SubHeader } from "../SubComponents/SubHeader";
@@ -114,24 +115,22 @@ export const Roles = () => {
       key: "action",
       render: (text, row) => (
         <Dropdown
-          overlay={
-            <Menu
-              items={[
-                {
-                  label: (
-                    <a onClick={() => dispatch(getRoleDataById(row.id))}>
-                      Edit
-                    </a>
-                  ),
-                  key: "0",
-                },
-                {
-                  label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
-                  key: "1",
-                },
-              ]}
-            />
-          }
+          menu={{
+            items: [
+              {
+                label: (
+                  <a onClick={() => dispatch(getRoleDataById(row.id))}>
+                    Edit
+                  </a>
+                ),
+                key: "0",
+              },
+              {
+                label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
+                key: "1",
+              },
+            ],
+          }}
           trigger={["click"]}
         >
           <a onClick={(e) => e.preventDefault()}>
