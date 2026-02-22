@@ -143,12 +143,14 @@ class DisplayGroupCreateSerizalier(ModelSerializer):
         return display_group
     
     def update(self, instance, validated_data):
-        playlist = validated_data.get('playlist',None)
-        schedule = validated_data.get('schedule',None)
+        if 'playlist' not in validated_data and 'schedule' not in validated_data:
+            return super().update(instance, validated_data)
+        playlist = validated_data.get('playlist', None)
+        schedule = validated_data.get('schedule', None)
         validated_data.update({'playlist': playlist})
         validated_data.update({'schedule': schedule})
-        if(playlist and schedule):
+        if playlist and schedule:
             raise serializers.ValidationError("You can't create display group with both playlist and schedule or playlist and display set")
-        if not (playlist) and not (schedule):
+        if not playlist and not schedule:
             raise serializers.ValidationError("You must create display group with playlist or schedule or display set")
         return super().update(instance, validated_data)

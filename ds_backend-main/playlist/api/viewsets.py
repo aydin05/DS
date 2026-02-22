@@ -237,7 +237,7 @@ class PlaylistDetailApiView(APIView):
             id = request.GET.get('id')
             display_type = request.GET.get('display_type')
             playlist = get_object_or_404(Playlist, pk=id)
-            list_of_data = playlist.extra_fields
+            list_of_data = copy.deepcopy(playlist.extra_fields)
             for data in list_of_data:
                 for item in data['items']:
                     is_exist = False
@@ -284,20 +284,19 @@ class PlaylistDetailApiView(APIView):
             return Response({"error": "Invalid username or password"}, status=400)
         elif username and not password:
             display = Display.objects.filter(username=username).last()
-            if display:
-                if display.playlist:
-                    playlist_id = display.playlist.id 
-                elif display.display_group and display.display_group.playlist:
-                    playlist_id = display.display_group.playlist.id
-                elif display.display_group and display.display_group.schedule:
-                    playlist_id = display.display_group.schedule.default_playlist.id
-                elif display.schedule:
-                    playlist_id = display.schedule.default_playlist.id
-                else: 
-                    return Response({"error": "Playlist not found please assign playlist display or others"}, status=400)
-            else:
+            if not display:
                 return Response({"error": "Display not found"}, status=400)
-            playlist = Playlist.objects.filter(id = playlist_id).last()
+            if display.playlist:
+                playlist_id = display.playlist.id 
+            elif display.display_group and display.display_group.playlist:
+                playlist_id = display.display_group.playlist.id
+            elif display.display_group and display.display_group.schedule:
+                playlist_id = display.display_group.schedule.default_playlist.id
+            elif display.schedule:
+                playlist_id = display.schedule.default_playlist.id
+            else: 
+                return Response({"error": "Playlist not found please assign playlist display or others"}, status=400)
+            playlist = Playlist.objects.filter(id=playlist_id).last()
             playlist.slides = None
             serializer = PlaylistDetailSerializer(playlist, context={'request': request})
             data = serializer.data

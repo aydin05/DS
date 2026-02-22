@@ -211,14 +211,10 @@ class CompanyUserSerializer(RegistrationSerializer):
         password = validated_data.get('password')
         if password:
             validated_data.update({'password': make_password(password)})
-        branch = ''
-        role = ''
         if "role" in validated_data:
-            role = validated_data.pop('role')
+            instance.role.set(validated_data.pop('role'))
         if 'branch' in validated_data:
-            branch = validated_data.pop('branch')
-        instance.role.set(role)
-        instance.branch.set(branch)
+            instance.branch.set(validated_data.pop('branch'))
         return super().update(instance, validated_data)
 
     def to_representation(self, instance):
@@ -243,9 +239,9 @@ class RoleGroupSerializer(ModelSerializer):
         old_role = RoleGroup.objects.filter(name__iexact=attr, company=self.context['request'].user.company)
         if self.instance:
             old_role = old_role.exclude(id=self.instance.id)
-        elif old_role.exists():
+        if old_role.exists():
             raise ValidationError(_("Role group already exists!"))
-        return super().validate(attr)
+        return attr
 
 
 

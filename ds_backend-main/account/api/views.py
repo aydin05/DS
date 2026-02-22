@@ -1,14 +1,14 @@
 from rest_framework import permissions, status, generics,views
 from account.api.serializers import ForgetPasswordRequestSerializer, RedirectUrlParamsSerializer, RegistrationSerializer, LoginSerializer, ResetPasswordSerializer, UserSerializer,CountrySerializer,CompanySerializer,CompanyUserSerializer
 from django.contrib.auth import get_user_model
-from account.tools.token import get_tokens
+from account.tools.token import get_tokens, account_activation_token
 from tools.custom_filter_tools import get_or_none
 from rest_framework.response import Response
 from knox.auth import TokenAuthentication
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.signals import user_logged_out
 from django.contrib.auth import login as django_login
-from datetime import datetime
+from django.utils import timezone
 from account.models import Company
 from django_countries import countries
 from django.utils.http import urlsafe_base64_decode
@@ -60,7 +60,7 @@ class LoginAPIView(generics.GenericAPIView):
         login_serializer = self.login_serializer_class(data=request.data)
         login_serializer.is_valid(raise_exception=True)
         user = login_serializer.user
-        user.last_login = datetime.now()
+        user.last_login = timezone.now()
         user.save()
         response_data = self.login(user)
         return Response(data=response_data, status=status.HTTP_200_OK)
@@ -159,6 +159,9 @@ class ResetPasswordAPIView(generics.GenericAPIView):
         token = serializer.data['token']
         self.user = self.get_user(uid)
         if self.user:
+            if not account_activation_token.check_token(self.user, token):
+                response_data = {"action": self.response_action, "message": _('Invalid or expired token')}
+                return Response(data=response_data, status=status.HTTP_400_BAD_REQUEST)
             password = serializer.data.get('password')
             if password is not None:
                 self.user.set_password(password)

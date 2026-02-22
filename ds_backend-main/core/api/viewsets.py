@@ -64,11 +64,11 @@ class MultiSerializerViewSet(UserBelongsToCompanyPermission, ModelViewSet):
         return self.multi_serializers.get(self.action, self.multi_serializers['default'])
 
     def get_queryset(self):
-        queryset = {}
         if self.model and self.request.user.is_authenticated:
-            queryset = self.model.objects.filter(company=self.request.user.company)
-        return queryset
-
+            return self.model.objects.filter(company=self.request.user.company)
+        if self.model:
+            return self.model.objects.none()
+        return super().get_queryset().none()
 
 
 
@@ -85,11 +85,9 @@ class CompanyUserViewSet(MultiSerializerViewSet):
     ordering = ['fullname']
 
     def get_queryset(self):
-        queryset = {}
         if self.model and self.request.user.is_authenticated:
-            queryset = self.model.objects.filter(company=self.request.user.company).order_by('fullname')
-                # exclude(id=self.request.user.id)
-        return queryset
+            return self.model.objects.filter(company=self.request.user.company).order_by('fullname')
+        return User.objects.none()
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -144,10 +142,9 @@ class CompanyFileViewSet(MultiSerializerViewSet):
     pagination_class = None
     
     def get_queryset(self):
-        queryset = {}
         if self.model and self.request.user.is_authenticated:
-            queryset = self.model.objects.filter(company=self.request.user.company).order_by('file')
-        return queryset
+            return self.model.objects.filter(company=self.request.user.company).order_by('file')
+        return CompanyFile.objects.none()
 
 
 def sanitize_filename(username):

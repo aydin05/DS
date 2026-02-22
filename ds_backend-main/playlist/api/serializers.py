@@ -254,13 +254,13 @@ class SlideSerializer(ModelSerializer):
         fields = ("id", 'name', 'position', 'duration', 'playlist', 'bg_color', 'items')
 
     def get_items(self, obj):
-        slide_items = obj.slideitem_set.all()
+        slide_items = list(obj.slideitem_set.all())
         display_type = self.context['display_type']
         for slide_item in slide_items:
-            location = slide_item.attr.get('location',None)
+            location = slide_item.attr.get('location', None)
             if not location:
-                slide_item.attr['location'] = slide_item.attr.get('url', '')
-        return SlideItemSerializer(slide_items, many=True,context={'display_type':display_type}).data
+                slide_item.attr = {**slide_item.attr, 'location': slide_item.attr.get('url', '')}
+        return SlideItemSerializer(slide_items, many=True, context={'display_type': display_type}).data
 
 
 
