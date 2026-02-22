@@ -124,24 +124,19 @@ export const Schedules = () => {
           menu={{
             items: [
               {
-                label: (
-                  <a onClick={() => navigate("/schedules/" + row.id)}>
-                    Manage
-                  </a>
-                ),
+                label: "Manage",
                 key: "0",
+                onClick: () => navigate("/schedules/" + row.id),
               },
               {
-                label: (
-                  <a onClick={() => dispatch(getScheduleDataById({ id: row.id }))}>
-                    Edit
-                  </a>
-                ),
+                label: "Edit",
                 key: "1",
+                onClick: () => dispatch(getScheduleDataById({ id: row.id })),
               },
               {
-                label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
+                label: "Delete",
                 key: "2",
+                onClick: () => toggleDelete(row.id),
               },
             ],
           }}

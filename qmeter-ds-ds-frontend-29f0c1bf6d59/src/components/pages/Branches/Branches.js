@@ -126,24 +126,19 @@ export const Branches = () => {
           menu={{
             items: [
               {
-                label: (
-                  <a onClick={() => navigate(`/branches/${row.id}`)}>
-                    Manage
-                  </a>
-                ),
+                label: "Manage",
                 key: "0",
+                onClick: () => navigate(`/branches/${row.id}`),
               },
               {
-                label: (
-                  <a onClick={() => dispatch(getBranchDataById({ id: row.id }))}>
-                    Edit
-                  </a>
-                ),
+                label: "Edit",
                 key: "1",
+                onClick: () => dispatch(getBranchDataById({ id: row.id })),
               },
               {
-                label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
+                label: "Delete",
                 key: "2",
+                onClick: () => toggleDelete(row.id),
               },
             ],
           }}

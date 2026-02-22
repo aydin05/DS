@@ -121,15 +121,14 @@ export const EmailTemplates = () => {
             items: [
               {
                 key: "edit",
-                label: <span onClick={() => onEdit(row)}>Edit</span>,
+                label: "Edit",
+                onClick: () => onEdit(row),
               },
               {
                 key: "delete",
-                label: (
-                  <span style={{ color: "red" }} onClick={() => onDelete(row.id)}>
-                    Delete
-                  </span>
-                ),
+                label: "Delete",
+                danger: true,
+                onClick: () => onDelete(row.id),
               },
             ],
           }}

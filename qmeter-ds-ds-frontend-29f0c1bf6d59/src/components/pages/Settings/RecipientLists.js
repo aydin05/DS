@@ -228,21 +228,19 @@ export const RecipientLists = () => {
             items: [
               {
                 key: "manage",
-                label: (
-                  <span onClick={() => openDetail(row)}>Manage Recipients</span>
-                ),
+                label: "Manage Recipients",
+                onClick: () => openDetail(row),
               },
               {
                 key: "edit",
-                label: <span onClick={() => onEdit(row)}>Edit</span>,
+                label: "Edit",
+                onClick: () => onEdit(row),
               },
               {
                 key: "delete",
-                label: (
-                  <span style={{ color: "red" }} onClick={() => onDelete(row.id)}>
-                    Delete
-                  </span>
-                ),
+                label: "Delete",
+                danger: true,
+                onClick: () => onDelete(row.id),
               },
             ],
           }}

@@ -119,16 +119,14 @@ export const Roles = () => {
           menu={{
             items: [
               {
-                label: (
-                  <a onClick={() => dispatch(getRoleDataById(row.id))}>
-                    Edit
-                  </a>
-                ),
+                label: "Edit",
                 key: "0",
+                onClick: () => dispatch(getRoleDataById(row.id)),
               },
               {
-                label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
+                label: "Delete",
                 key: "1",
+                onClick: () => toggleDelete(row.id),
               },
             ],
           }}

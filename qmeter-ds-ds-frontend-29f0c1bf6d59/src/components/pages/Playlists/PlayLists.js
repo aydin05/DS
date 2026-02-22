@@ -172,36 +172,36 @@ export const PlayLists = () => {
           menu={{
             items: [
               {
-                label: (
-                  <a onClick={() => navigate(`/playlists/${row.id}`)}>Manage</a>
-                ),
+                label: "Manage",
                 key: "0",
+                onClick: () => navigate(`/playlists/${row.id}`),
               },
               {
-                label: <a onClick={() => publish(row.id)}>Publish</a>,
+                label: "Publish",
                 key: "1",
                 disabled: !row.is_update,
+                onClick: () => publish(row.id),
               },
               {
-                label: <a onClick={() => discard(row.id)}>Discard</a>,
+                label: "Discard",
                 key: "2",
                 disabled: !row.is_update,
+                onClick: () => discard(row.id),
               },
               {
-                label: (
-                  <a onClick={() => dispatch(getPlayListDataById({ id: row.id }))}>
-                    Edit
-                  </a>
-                ),
+                label: "Edit",
                 key: "3",
+                onClick: () => dispatch(getPlayListDataById({ id: row.id })),
               },
               {
-                label: <a onClick={() => handleDuplicate(row.id)}>Duplicate</a>,
+                label: "Duplicate",
                 key: "4",
+                onClick: () => handleDuplicate(row.id),
               },
               {
-                label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
+                label: "Delete",
                 key: "5",
+                onClick: () => toggleDelete(row.id),
               },
             ],
           }}

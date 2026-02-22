@@ -161,16 +161,14 @@ export const DisplayGroups = () => {
           menu={{
             items: [
               {
-                label: (
-                  <a onClick={() => dispatch(getDisplayGroupDataById(row.id))}>
-                    Edit
-                  </a>
-                ),
+                label: "Edit",
                 key: "0",
+                onClick: () => dispatch(getDisplayGroupDataById(row.id)),
               },
               {
-                label: <a onClick={() => toggleDelete(row.id)}>Delete</a>,
+                label: "Delete",
                 key: "1",
+                onClick: () => toggleDelete(row.id),
               },
             ],
           }}
