@@ -96,7 +96,7 @@ class DeviceLogDetailSerializer(ModelSerializer):
 class CompanyFileSerializer(ModelSerializer):
     class Meta:
         model = CompanyFile
-        fields = ("id", 'file','type','duration')
+        fields = ("id", 'file', 'thumbnail', 'type', 'duration')
 
     def validate(self, attrs):
         file_obj = attrs.get('file')

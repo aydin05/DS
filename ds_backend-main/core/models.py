@@ -13,6 +13,7 @@ class WidgetType(BaseModel):
 
 class CompanyFile(BaseModel):
     file = models.FileField(_("File"),upload_to='company_file')
+    thumbnail = models.ImageField(_("Thumbnail"), upload_to='company_file/thumbs', null=True, blank=True)
     company = models.ForeignKey('account.Company', on_delete=models.CASCADE)
     type = models.CharField(_("Type"),max_length=100,null=True,blank=True)
     duration = models.PositiveIntegerField(_("Duration"),null=True,blank=True)

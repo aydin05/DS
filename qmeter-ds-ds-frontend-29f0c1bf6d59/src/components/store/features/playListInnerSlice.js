@@ -790,7 +790,7 @@ const playListInnerSlice = createSlice({
       state.widgetTypeObject = obj;
     });
     builder.addCase(fetchWidgetTypes.rejected, (state) => {
-      state.isLoadingUpload = false;
+      state.isLoadingWidgetType = false;
     });
 
     /*Save slide*/

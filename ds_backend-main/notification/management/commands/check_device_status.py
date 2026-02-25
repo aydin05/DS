@@ -3,6 +3,7 @@ import time
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand
+from django.db import close_old_connections
 from django.db.models import Q
 from django.utils import timezone
 from django.template import Template, Context
@@ -40,6 +41,7 @@ class Command(BaseCommand):
 
         while True:
             try:
+                close_old_connections()
                 interval = self._check_and_notify()
             except Exception:
                 logger.exception('Error in device status checker loop')

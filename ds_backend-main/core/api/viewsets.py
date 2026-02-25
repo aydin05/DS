@@ -143,7 +143,7 @@ class CompanyFileViewSet(MultiSerializerViewSet):
     
     def get_queryset(self):
         if self.model and self.request.user.is_authenticated:
-            return self.model.objects.filter(company=self.request.user.company).order_by('file')
+            return self.model.objects.filter(company=self.request.user.company).order_by('-created_at')
         return CompanyFile.objects.none()
 
 

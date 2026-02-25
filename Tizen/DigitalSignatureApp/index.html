@@ -29,7 +29,6 @@
         }
         
         #content-wrap {
-            transition: opacity 0.3s ease-in-out;
             opacity: 1;
         }
         
@@ -116,11 +115,11 @@
                 <p id="cred-subtitle">Digital Signage</p>
                 <div id="cred-fields">
                     <label class="cred-label" for="server">Server URL</label>
-                    <input id="server" name="server" type="text" placeholder="https://aydin.technolink.az" required />
+                    <input id="server" name="server" type="text" placeholder="https://aydin.technolink.az" value="https://aydin.technolink.az" required />
                     <label class="cred-label" for="username">Username</label>
-                    <input id="username" name="username" type="text" placeholder="Enter username" required />
+                    <input id="username" name="username" value="a" type="text" placeholder="Enter username" required />
                     <label class="cred-label" for="password">Password</label>
-                    <input id="password" name="password" type="password" placeholder="Enter password" required />
+                    <input id="password" name="password" value="a1" type="password" placeholder="Enter password" required />
                 </div>
                 <button id="login-btn" type="button">Sign In</button>
                 <div id="cred-error"></div>

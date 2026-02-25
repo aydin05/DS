@@ -1,6 +1,14 @@
 /**
- * Enhanced Player class with precise timing control
- * Uses RequestAnimationFrame for more accurate timing
+ * Player — Tizen 7 dual-decoder slide player.
+ *
+ * Simple approach:
+ * 1. Show current slide (front layer, z-index 2)
+ * 2. IMMEDIATELY load next slide behind it (back layer, z-index 1, opacity 1, muted)
+ *    → Second decoder has the ENTIRE slide duration to load & render frames
+ * 3. When timer fires → fade out front → back is already visible
+ * 4. Promote back to front, load next behind it again
+ *
+ * No pause/reset/play on videos — that causes black frames on Tizen.
  */
 class Player {
     constructor(slides) {
@@ -11,501 +19,447 @@ class Player {
         this.isGlobalString = false;
         this.globalSlide = [];
         this.globalSlideNum = 0;
-        
-        // Timing variables
+
+        // Timing
         this.slideStartTime = 0;
         this.slideDuration = 0;
         this.animationFrameId = null;
         this.isSlidePlaying = false;
-        this._lastVideoElement = null;
-        this._transitionTimeoutId = null;
-        this._mediaTimeoutId = null;
+
+        // Video tracking
+        this.videoElement = null;        // current slide's video
+        this._backVideoElement = null;   // back layer's video (next slide)
+        this._backVideoOriginalMuted = false;
+
+        // Back layer
+        this._backContainer = null;
+        this._backSlideIndex = -1;
+
         this._stopped = false;
-        this._freezeCanvas = null;
-        
-        // Reference to video element
-        this.videoElement = null;
-        Logger.info("Player initialized.", { slideCount: slides.length }); //
+
+        Logger.info("Player initialized.", { slideCount: slides.length });
     }
 
+    // ─── Lifecycle ────────────────────────────────────────────────────
+
     stopPlayer() {
-        Logger.info("Player stopping."); //
+        Logger.info("Player stopping.");
         this._stopped = true;
 
-        // Cancel all pending timeouts
-        if (this._transitionTimeoutId) {
-            clearTimeout(this._transitionTimeoutId);
-            this._transitionTimeoutId = null;
-            Logger.info("Pending transition timeout cancelled.");
-        }
-        if (this._mediaTimeoutId) {
-            clearTimeout(this._mediaTimeoutId);
-            this._mediaTimeoutId = null;
-            Logger.info("Pending media timeout cancelled.");
-        }
+        if (this.animationFrameId) { cancelAnimationFrame(this.animationFrameId); this.animationFrameId = null; }
 
-        // Stop animation frame
-        if (this.animationFrameId) {
-            cancelAnimationFrame(this.animationFrameId);
-            this.animationFrameId = null;
-            Logger.info("Animation frame cancelled."); //
-        }
-        
-        // Stop video and release hardware decoder
         if (this.videoElement) {
-            try {
-                this.videoElement.pause();
-                this.videoElement.removeAttribute('src');
-                this.videoElement.load();
-            } catch (e) { /* ignore */ }
-            Logger.info("Video stopped and decoder released."); //
-            this.videoElement = null;
+            try { this.videoElement.pause(); } catch (e) {}
         }
-        if (this._freezeCanvas) {
-            this._freezeCanvas.remove();
-            this._freezeCanvas = null;
+        if (this._backVideoElement) {
+            try { this._backVideoElement.pause(); } catch (e) {}
         }
-        if (this._lastVideoElement) {
-            try {
-                this._lastVideoElement.pause();
-                this._lastVideoElement.removeAttribute('src');
-                this._lastVideoElement.load();
-            } catch (e) { /* ignore */ }
-            this._lastVideoElement = null;
-        }
-        
-        // Reset state
+        this.videoElement = null;
+        this._backVideoElement = null;
+
+        this._cleanupBack();
+
         this.slides = [];
         this.currentSlide = 1;
         this.isGlobalString = false;
         this.globalSlide = [];
         this.isSlidePlaying = false;
-        Logger.info("Player state reset."); //
-        
-        // Clear any existing content
-        let contentWrap = document.getElementById("content-wrap");
-        if (contentWrap) {
-            contentWrap.innerHTML = "";
-            Logger.info("Content container cleared."); //
-        }
+
+        var wrap = document.getElementById("content-wrap");
+        if (wrap) wrap.remove();
+        Logger.info("Player state reset.");
     }
 
     startPlayer() {
-        Logger.info("Player starting."); //
+        Logger.info("Player starting.");
         this._stopped = false;
-        // Initialize player
         this.processSlides();
         this.currentSlide = 1;
-        Logger.info("Processed slides array, total after processing:", { slidesCount: this.slides.length }); //
-        this.showSlide(this.currentSlide);
+        Logger.info("Processed slides, count:", { slidesCount: this.slides.length });
+        this._showFirstSlide();
     }
-    
+
     processSlides() {
-        Logger.info("Processing slides to extract globaltext and filter slides."); //
-        let newArray = [];
-        for (let i = 0; i < this.slides.length; i++) {
-            let hasGlobalText = false;
-            let hasOtherContent = false;
-            for (let i2 = 0; i2 < this.slides[i].items.length; i2++) {
+        Logger.info("Processing slides to extract globaltext and filter slides.");
+        var newArray = [];
+        for (var i = 0; i < this.slides.length; i++) {
+            var hasGlobalText = false;
+            var hasOtherContent = false;
+            for (var i2 = 0; i2 < this.slides[i].items.length; i2++) {
                 if (this.slides[i].items[i2].type_content === "globaltext") {
                     this.isGlobalString = true;
                     this.globalSlide = this.slides[i].items[i2];
                     hasGlobalText = true;
-                    Logger.info("Found globaltext in slide", { slideIndex: i, globalTextItem: this.globalSlide }); //
                 } else {
                     hasOtherContent = true;
                 }
             }
-            // Only add slide if it has content other than globaltext
             if (hasOtherContent || !hasGlobalText) {
                 newArray.push(this.slides[i]);
-            } else {
-                Logger.info("Filtering out globaltext-only slide", { slideIndex: i }); //
             }
         }
         this.slides = newArray;
         this.slidesCount = this.slides.length;
-        Logger.info("Slides array updated, new count:", { slidesCount: this.slidesCount }); //
     }
 
+    // ─── First slide (no transition needed) ──────────────────────────
+
+    _showFirstSlide() {
+        if (this._stopped) return;
+        var slideData = this.slides[0];
+        this.slideDuration = (slideData.duration || 5) * 1000;
+
+        // Create front container
+        var container = this._createContainer("content-wrap", "2");
+        document.body.appendChild(container);
+
+        this.videoElement = null;
+        this._populateContainer(container, slideData.items);
+
+        // Wait for media to be ready, then start timer + load back layer
+        this._waitForMedia(container, function () {
+            container.style.opacity = "1";
+        });
+    }
+
+    // ─── Transition to next slide ────────────────────────────────────
+
+    _transitionToNext() {
+        if (this._stopped) return;
+        Logger.info("Transitioning to next slide.");
+
+        var frontContainer = document.getElementById("content-wrap");
+        var backContainer = this._backContainer;
+
+        // If back layer exists and matches next slide, use it
+        var nextIndex = (this.currentSlide === this.slidesCount) ? 1 : this.currentSlide + 1;
+
+        if (backContainer && this._backSlideIndex === nextIndex) {
+            this.currentSlide = nextIndex;
+            var oldVideo = this.videoElement;
+            this.videoElement = this._backVideoElement;
+            this._backContainer = null;
+            this._backVideoElement = null;
+            this._backSlideIndex = -1;
+
+            var self = this;
+            var hasOldVideo = !!oldVideo;
+            var hasNewVideo = !!this.videoElement;
+
+            var promoteBack = function () {
+                if (self._stopped) return;
+
+                // Promote back to front FIRST
+                backContainer.id = "content-wrap";
+                backContainer.style.zIndex = "2";
+                backContainer.style.pointerEvents = "";
+
+                // Unmute
+                if (self.videoElement) {
+                    self.videoElement.muted = self._backVideoOriginalMuted;
+                }
+
+                Logger.info("Transition complete.", { currentSlide: self.currentSlide });
+
+                var slideData = self.slides[self.currentSlide - 1];
+                self.slideDuration = (slideData.duration || 5) * 1000;
+                self._startTimerAndLoadBack();
+            };
+
+            if (hasOldVideo && hasNewVideo) {
+                // VIDEO → VIDEO: instant swap
+                // Tizen uses hardware overlays for video — DOM removal alone
+                // doesn't clear the overlay. Must hide the VIDEO ELEMENT itself
+                // (display:none + size 0) to kill the hardware overlay, then
+                // defer cleanup to the next frame so compositor can process.
+                Logger.info("Video→Video: instant swap.");
+
+                // Step 1: Kill old video's hardware overlay immediately
+                oldVideo.style.display = "none";
+                oldVideo.style.width = "0";
+                oldVideo.style.height = "0";
+
+                // Step 2: Promote back to front (now visible)
+                promoteBack();
+
+                // Step 3: Deferred cleanup — let compositor process the hide first
+                requestAnimationFrame(function () {
+                    try { oldVideo.pause(); } catch (e) {}
+                    try {
+                        oldVideo.removeAttribute("src");
+                        oldVideo.load();
+                    } catch (e) {}
+                    if (frontContainer) frontContainer.remove();
+                });
+            } else {
+                // Non-video transition: 300ms crossfade
+                if (frontContainer) {
+                    frontContainer.style.transition = "opacity 0.3s ease-in-out";
+                    frontContainer.style.opacity = "0";
+                }
+                setTimeout(function () {
+                    if (oldVideo) {
+                        try { oldVideo.pause(); } catch (e) {}
+                    }
+                    if (frontContainer) frontContainer.remove();
+                    promoteBack();
+                }, 300);
+            }
+        } else {
+            // No back layer ready — fall back: create slide from scratch
+            this._cleanupBack();
+            this.currentSlide = nextIndex;
+            this.showSlide(this.currentSlide);
+        }
+    }
+
+    // Fallback: show slide from scratch (used when back layer isn't ready)
     showSlide(slideIndex) {
-        Logger.info(`Showing slide ${slideIndex}.`); //
+        Logger.info("showSlide (fallback)", { slideIndex: slideIndex });
+        if (this._stopped) return;
         if (!this.slides || this.slides.length === 0 || slideIndex > this.slides.length) {
-            console.error("Invalid slide index or no slides available");
-            Logger.error("Invalid slide index or no slides available", { slideIndex, slidesLength: this.slides ? this.slides.length : 0 }); //
+            Logger.error("Invalid slide index or no slides available", { slideIndex: slideIndex });
             return;
         }
-        
-        // Stop previous animation frame if running
-        if (this.animationFrameId) {
-            cancelAnimationFrame(this.animationFrameId);
-            this.animationFrameId = null;
-            Logger.info("Previous animation frame cancelled before showing new slide."); //
-        }
 
-        // DO NOT release old video here — keep old slide visible as a cover
-        // while the new slide loads behind it. Decoder is released in
-        // transitionToNextSlide() when old container is removed.
-        
-        // Get current slide data
-        const slideData = this.slides[slideIndex - 1];
-        const slideItems = slideData.items;
-        
-        // Get slide duration (in milliseconds)
-        this.slideDuration = (slideData.duration || 5) * 1000; // Convert to milliseconds, default 5s
-        Logger.info("Slide duration set (ms):", { slideDuration: this.slideDuration }); //
-        
-        // Create container for the next slide
-        this.prepareNextSlideContainer(slideItems);
-    }
-    
-    prepareNextSlideContainer(slideItems) {
-        Logger.info("Preparing container for next slide.", { itemCount: slideItems.length }); //
-        // Get current content container
-        const currentContainer = document.getElementById("content-wrap");
-        
-        // Create new container BEHIND the old one so old slide stays visible
-        const nextContainer = document.createElement("div");
-        nextContainer.id = "next-content-wrap";
-        nextContainer.style.position = "absolute";
-        nextContainer.style.top = "0";
-        nextContainer.style.left = "0";
-        nextContainer.style.width = "100%";
-        nextContainer.style.height = "100%";
-        nextContainer.style.opacity = "1";
-        nextContainer.style.background = "#000";
-        // Place BEHIND old container — old slide covers this while it loads
-        nextContainer.style.zIndex = "1";
+        if (this.animationFrameId) { cancelAnimationFrame(this.animationFrameId); this.animationFrameId = null; }
+
+        var slideData = this.slides[slideIndex - 1];
+        this.slideDuration = (slideData.duration || 5) * 1000;
+
+        var currentContainer = document.getElementById("content-wrap");
+
+        // Create next on top at opacity 0
+        var nextContainer = this._createContainer("next-content-wrap", "3");
         if (currentContainer) {
-            currentContainer.style.zIndex = "2";
-        }
-        
-        // Insert before current container (behind in DOM)
-        if (currentContainer && currentContainer.parentNode) {
-            currentContainer.parentNode.insertBefore(nextContainer, currentContainer);
-            Logger.info("Inserted next slide container BEHIND current container."); //
+            currentContainer.parentNode.insertBefore(nextContainer, currentContainer.nextSibling);
         } else {
             document.body.appendChild(nextContainer);
-            Logger.info("No current container found; appended next container to body."); //
         }
-        
-        // Load all content for the slide
-        this.loadSlideContent(nextContainer, slideItems);
-    }
-    
-    loadSlideContent(container, slideItems) {
-        Logger.info("Loading slide content into container.", { slideItemsCount: slideItems.length }); //
-        // Reset video reference — will be set only if this slide has a video item.
+
+        var oldVideo = this.videoElement;
         this.videoElement = null;
+        this._populateContainer(nextContainer, slideData.items);
 
-        // If old video holds the HW decoder, capture its last frame as a canvas
-        // and release the decoder NOW so the new video can actually load.
-        if (this._lastVideoElement) {
-            this._captureFrameAndReleaseDecoder();
+        var self = this;
+        this._waitForMedia(nextContainer, function () {
+            // Fade in next, fade out current
+            nextContainer.style.transition = "opacity 0.3s ease-in-out";
+            nextContainer.style.opacity = "1";
+            if (currentContainer) {
+                currentContainer.style.transition = "opacity 0.3s ease-in-out";
+                currentContainer.style.opacity = "0";
+            }
+
+            setTimeout(function () {
+                if (self._stopped) return;
+                if (currentContainer) currentContainer.remove();
+                nextContainer.id = "content-wrap";
+                nextContainer.style.zIndex = "2";
+
+                if (oldVideo) {
+                    try { oldVideo.pause(); } catch (e) {}
+                }
+
+                self._startTimerAndLoadBack();
+            }, 300);
+        });
+    }
+
+    // ─── Back layer loading ──────────────────────────────────────────
+
+    _loadBackLayer() {
+        if (this._stopped) return;
+        if (this.slidesCount <= 1) return;
+
+        var nextIndex = (this.currentSlide === this.slidesCount) ? 1 : this.currentSlide + 1;
+        if (this._backSlideIndex === nextIndex) return;
+
+        this._cleanupBack();
+
+        Logger.info("Loading back layer.", { nextIndex: nextIndex });
+        var slideData = this.slides[nextIndex - 1];
+
+        // Create back layer: z-index 1 (BEHIND front which is z-index 2)
+        // opacity MUST be 1 so Tizen decoder actually renders video frames
+        var container = this._createContainer("back-content-wrap", "1");
+        container.style.opacity = "1";
+        container.style.pointerEvents = "none";
+        document.body.appendChild(container);
+
+        // Populate (this sets this.videoElement temporarily)
+        var savedVideo = this.videoElement;
+        this.videoElement = null;
+        this._populateContainer(container, slideData.items);
+        this._backVideoElement = this.videoElement;
+        this.videoElement = savedVideo;
+
+        // Mute back layer video so user doesn't hear it
+        if (this._backVideoElement) {
+            this._backVideoOriginalMuted = this._backVideoElement.muted;
+            this._backVideoElement.muted = true;
         }
 
-        // Track if we're loading media that needs to complete
-        let mediaLoading = false;
-        const mediaElements = [];
-        
-        // Add global text if exists
+        this._backContainer = container;
+        this._backSlideIndex = nextIndex;
+        Logger.info("Back layer created.", { nextIndex: nextIndex });
+    }
+
+    _cleanupBack() {
+        if (this._backContainer) {
+            var vid = this._backContainer.querySelector("video");
+            if (vid) { try { vid.pause(); } catch (e) {} }
+            this._backContainer.remove();
+            this._backContainer = null;
+            this._backVideoElement = null;
+            this._backSlideIndex = -1;
+        }
+    }
+
+    // ─── Helper: create a container div ──────────────────────────────
+
+    _createContainer(id, zIndex) {
+        var container = document.createElement("div");
+        container.id = id;
+        container.style.position = "absolute";
+        container.style.top = "0";
+        container.style.left = "0";
+        container.style.width = "100%";
+        container.style.height = "100%";
+        container.style.opacity = "0";
+        container.style.zIndex = zIndex;
+        return container;
+    }
+
+    // ─── Wait for media ready ────────────────────────────────────────
+
+    _waitForMedia(container, onReady) {
+        var self = this;
+        var done = false;
+
+        var finish = function () {
+            if (done) return;
+            done = true;
+            onReady();
+            self._startTimerAndLoadBack();
+        };
+
+        var imgs = container.querySelectorAll("img");
+        var vids = container.querySelectorAll("video");
+        var total = imgs.length + vids.length;
+
+        if (total === 0) { finish(); return; }
+
+        var loaded = 0;
+        var check = function () { if (++loaded >= total) finish(); };
+
+        for (var i = 0; i < imgs.length; i++) {
+            (function (img) {
+                if (img.complete) { check(); }
+                else {
+                    img.onload = check;
+                    img.onerror = check;
+                }
+            })(imgs[i]);
+        }
+
+        for (var v = 0; v < vids.length; v++) {
+            (function (vid) {
+                if (!vid.paused && vid.readyState >= 3) { check(); }
+                else {
+                    vid.addEventListener("playing", function onP() {
+                        vid.removeEventListener("playing", onP);
+                        check();
+                    });
+                    vid.onerror = check;
+                }
+            })(vids[v]);
+        }
+
+        // Safety timeout
+        setTimeout(function () { finish(); }, 5000);
+    }
+
+    // ─── Timer + back layer ──────────────────────────────────────────
+
+    _startTimerAndLoadBack() {
+        // Start the slide timer
+        this.slideStartTime = performance.now();
+        this.isSlidePlaying = true;
+        var self = this;
+
+        // Delay back layer loading by 500ms to let Tizen fully release
+        // the old video decoder. Tizen 7 has only 2 decoders — if we
+        // create a new one while the old one is still being freed, we
+        // get stuttering/overlay artifacts.
+        setTimeout(function () {
+            if (!self._stopped && self.isSlidePlaying) {
+                self._loadBackLayer();
+            }
+        }, 500);
+
+        var tick = function (timestamp) {
+            if (!self.isSlidePlaying) return;
+            if (timestamp - self.slideStartTime >= self.slideDuration) {
+                self.isSlidePlaying = false;
+                self._transitionToNext();
+            } else {
+                self.animationFrameId = requestAnimationFrame(tick);
+            }
+        };
+
+        this.animationFrameId = requestAnimationFrame(tick);
+    }
+
+    // ─── Populate container ──────────────────────────────────────────
+
+    _populateContainer(container, slideItems) {
         if (this.isGlobalString) {
-            const globalTextElement = this.addTextElement(this.globalSlide);
-            container.appendChild(globalTextElement);
-            Logger.info("Appended global text element to slide container."); //
+            container.appendChild(this.addTextElement(this.globalSlide));
         }
-        
-        // Add all slide items
-        for (const item of slideItems) {
-            let element = null;
-            
+        for (var i = 0; i < slideItems.length; i++) {
+            var item = slideItems[i];
+            var element = null;
             switch (item.type_content) {
                 case "text":
                 case "globaltext":
-                    Logger.info("Adding text element to slide.", { item }); //
                     element = this.addTextElement(item);
                     break;
                 case "video":
-                    Logger.info("Adding video element to slide.", { url: item.attr.location }); //
                     element = this.addVideoElement(item);
-                    mediaLoading = true;
-                    mediaElements.push(element);
-                    // Store reference to video
                     this.videoElement = element;
                     break;
                 case "image":
-                    Logger.info("Adding image element to slide.", { url: item.attr.location }); //
                     element = this.addImageElement(item);
-                    mediaLoading = true;
-                    mediaElements.push(element);
                     break;
                 case "site":
-                    Logger.info("Adding URL (iframe) element to slide.", { url: item.attr.url }); //
                     element = this.addURLElement(item);
                     break;
                 case "table":
-                    Logger.info("Adding table element to slide."); //
                     element = this.addTableElement(item);
                     break;
-                default:
-                    Logger.warn("Unknown item type, skipping element creation.", { type: item.type_content }); //
             }
-            
-            if (element) {
-                container.appendChild(element);
-                Logger.info("Appended element to slide container.", { elementType: item.type_content }); //
-            }
-        }
-        
-        if (mediaLoading) {
-            Logger.info("Media detected in slide; waiting for media load events."); //
-            this.waitForMediaLoad(container, mediaElements);
-        } else {
-            Logger.info("No media in slide; transitioning immediately."); //
-            this.transitionToNextSlide(container);
+            if (element) container.appendChild(element);
         }
     }
-    
-    waitForMediaLoad(container, mediaElements) {
-        Logger.info("waitForMediaLoad started.", { mediaElementsCount: mediaElements.length }); //
-        let loadedCount = 0;
-        const totalElements = mediaElements.length;
-        let transitioned = false;
-        
-        const doTransition = () => {
-            if (transitioned || this._stopped) return;
-            transitioned = true;
-            if (this._mediaTimeoutId) {
-                clearTimeout(this._mediaTimeoutId);
-                this._mediaTimeoutId = null;
-            }
-            Logger.info("All media elements have loaded successfully."); //
-            this.transitionToNextSlide(container);
-        };
-        
-        const checkAllLoaded = () => {
-            if (loadedCount >= totalElements) {
-                doTransition();
-            }
-        };
-        
-        // Set up load handlers for each media element
-        mediaElements.forEach(element => {
-            if (element.tagName.toLowerCase() === 'img') {
-                if (element.complete) {
-                    loadedCount++;
-                    Logger.info("Image element was already complete."); //
-                    checkAllLoaded();
-                } else {
-                    element.onload = () => {
-                        loadedCount++;
-                        Logger.info("Image element loaded."); //
-                        checkAllLoaded();
-                    };
-                    element.onerror = () => {
-                        console.error("Failed to load image");
-                        Logger.error("Image failed to load, continuing with fallback.", { src: element.src }); //
-                        loadedCount++;
-                        checkAllLoaded();
-                    };
-                }
-            } else if (element.tagName.toLowerCase() === 'video') {
-                if (element.readyState >= 3) { // HAVE_FUTURE_DATA
-                    loadedCount++;
-                    Logger.info("Video element already ready."); //
-                    checkAllLoaded();
-                } else {
-                    element.oncanplay = () => {
-                        loadedCount++;
-                        Logger.info("Video element ready to play."); //
-                        checkAllLoaded();
-                    };
-                    element.onerror = function(e) {
-                        // Count as error if src is set to a real URI (file:// or http://)
-                        // Ignore errors from empty src (Tizen async filesystem resolve pending)
-                        var hasSrc = element.src && (
-                            element.src.indexOf('file://') !== -1 ||
-                            element.src.indexOf('http://') !== -1 ||
-                            element.src.indexOf('https://') !== -1
-                        );
-                        if (hasSrc) {
-                            console.error("Failed to load video");
-                            Logger.error("Video failed to load, continuing with fallback.", { src: element.src });
-                            loadedCount++;
-                            checkAllLoaded();
-                        } else {
-                            Logger.warn("Video error ignored - waiting for Tizen filesystem resolve.", { src: element.src });
-                        }
-                    };
-                }
-            }
-        });
-        
-        // Safety timeout - if media doesn't load within 8 seconds, continue anyway
-        this._mediaTimeoutId = setTimeout(() => {
-            if (!transitioned && !this._stopped) {
-                console.warn("Some media elements didn't load in time, continuing anyway");
-                Logger.warn("Media load timeout reached; transitioning slide despite incomplete loads.", { loadedCount, totalElements }); //
-                doTransition();
-            }
-        }, 8000);
-    }
-    
-    // Capture the current video frame to a canvas overlay, then release the HW decoder.
-    // This lets the user see a frozen frame while the new video loads.
-    _captureFrameAndReleaseDecoder() {
-        var oldVideo = this._lastVideoElement;
-        if (!oldVideo) return;
 
-        // Try to paint the current frame onto a canvas
-        try {
-            var w = oldVideo.videoWidth || 1920;
-            var h = oldVideo.videoHeight || 1080;
-            var canvas = document.createElement('canvas');
-            canvas.width = w;
-            canvas.height = h;
-            canvas.style.position = 'absolute';
-            canvas.style.top = '0';
-            canvas.style.left = '0';
-            canvas.style.width = '100%';
-            canvas.style.height = '100%';
-            canvas.style.zIndex = '10';
-            canvas.id = 'freeze-frame';
-            var ctx = canvas.getContext('2d');
-            ctx.drawImage(oldVideo, 0, 0, w, h);
-            document.body.appendChild(canvas);
-            this._freezeCanvas = canvas;
-            Logger.info("Captured freeze-frame from old video.", { w: w, h: h });
-        } catch (e) {
-            Logger.warn("Could not capture freeze-frame.", { error: e.message });
-            this._freezeCanvas = null;
-        }
+    // ─── Go to next slide ────────────────────────────────────────────
 
-        // Release the HW decoder so the new video can load
-        try {
-            oldVideo.pause();
-            oldVideo.removeAttribute('src');
-            oldVideo.load();
-        } catch (e) { /* ignore */ }
-        this._lastVideoElement = null;
-        Logger.info("Released old video decoder after freeze-frame capture.");
-    }
-
-    transitionToNextSlide(nextContainer) {
-    	  Logger.info("Transitioning to next slide.");
-    	  if (this._stopped) return;
-
-    	  var currentContainer = document.getElementById("content-wrap");
-
-    	  // Clean up any leftover old video (shouldn't happen, but safety)
-    	  if (this._lastVideoElement) {
-    	    try {
-    	      this._lastVideoElement.pause();
-    	      this._lastVideoElement.removeAttribute('src');
-    	      this._lastVideoElement.load();
-    	    } catch (e) { /* ignore */ }
-    	    this._lastVideoElement = null;
-    	  }
-
-    	  // Remove old container
-    	  if (currentContainer) currentContainer.remove();
-
-    	  // Remove freeze-frame canvas (new slide is ready behind it)
-    	  if (this._freezeCanvas) {
-    	    this._freezeCanvas.remove();
-    	    this._freezeCanvas = null;
-    	    Logger.info("Removed freeze-frame canvas.");
-    	  }
-
-    	  nextContainer.id = "content-wrap";
-    	  nextContainer.style.zIndex = "1";
-
-    	  var newVideo = this.videoElement;
-    	  this._lastVideoElement = newVideo;
-
-    	  if (newVideo) {
-    	    try {
-    	      newVideo.currentTime = 0;
-    	    } catch (e) { /* ignore */ }
-
-    	    var playPromise = newVideo.play();
-    	    if (playPromise !== undefined) {
-    	      playPromise
-    	        .then(function() {
-    	          Logger.info("New video started playing.", { muted: newVideo.muted });
-    	        })
-    	        .catch(function(err) {
-    	          if (err.name === 'NotAllowedError' && !newVideo.muted) {
-    	            Logger.warn("Unmuted play blocked by autoplay policy, retrying muted.");
-    	            newVideo.muted = true;
-    	            newVideo.play().catch(function() {});
-    	          } else if (err.name !== 'AbortError') {
-    	            Logger.error("Error playing video element after transition.", { error: err.message });
-    	          }
-    	        });
-    	    }
-    	  }
-
-    	  // Start precise timer for this slide
-    	  this.startPreciseTimer();
-    	}
-    
-    startPreciseTimer() {
-        // Record exact start time
-        this.slideStartTime = performance.now();
-        this.isSlidePlaying = true;
-        Logger.info("Precise timer started.", { slideStartTime: this.slideStartTime, slideDuration: this.slideDuration }); //
-        
-        // Use requestAnimationFrame for more precise timing
-        const checkTime = (timestamp) => {
-            if (!this.isSlidePlaying) {
-                Logger.info("Precise timer canceled, no longer checking time."); //
-                return;
-            }
-            
-            // Calculate elapsed time
-            const elapsed = timestamp - this.slideStartTime;
-            
-            // If it's time to change slides
-            if (elapsed >= this.slideDuration) {
-                Logger.info("Slide duration elapsed, advancing to next slide.", { elapsed, slideDuration: this.slideDuration }); //
-                this.isSlidePlaying = false;
-                this.goToNextSlide();
-            } else {
-                // Continue checking time
-                this.animationFrameId = requestAnimationFrame(checkTime);
-            }
-        };
-        
-        // Start animation frame loop
-        this.animationFrameId = requestAnimationFrame(checkTime);
-    }
-    
     goToNextSlide() {
-        Logger.info("Going to next slide.", { currentSlide: this.currentSlide, totalSlides: this.slidesCount }); //
+        Logger.info("goToNextSlide", { currentSlide: this.currentSlide, totalSlides: this.slidesCount });
 
-        // Single-slide optimization: replay video in-place instead of destroying/recreating DOM.
-        if (this.slidesCount === 1 && this._lastVideoElement) {
-            Logger.info("Single slide with video — replaying in-place.");
-            try {
-                this._lastVideoElement.currentTime = 0;
-                this._lastVideoElement.play().catch(function() {});
-            } catch (e) { /* ignore */ }
-            this.startPreciseTimer();
+        // Single-slide video: replay in-place
+        if (this.slidesCount === 1 && this.videoElement) {
+            try { this.videoElement.currentTime = 0; } catch (e) {}
+            try { this.videoElement.play(); } catch (e) {}
+            this._startTimerAndLoadBack();
             return;
         }
 
-        if (this.currentSlide === this.slidesCount) {
-            this.currentSlide = 1;
-        } else {
-            this.currentSlide++;
-        }
-        Logger.info("Updated currentSlide index.", { newCurrentSlide: this.currentSlide }); //
-
-        this.showSlide(this.currentSlide);
+        this._transitionToNext();
     }
-    
-    // The original element creation methods
+
+    // ─── Element creation methods ────────────────────────────────────
     addTextElement(element) {
         Logger.info("addTextElement invoked.", { element }); //
         let elementWrap = document.createElement("div");
@@ -541,61 +495,61 @@ class Player {
 
     addVideoElement(element) {
         Logger.info("addVideoElement invoked.", { url: element.attr.location }); //
+        var loc = element.attr.location;
         let elementWrap = document.createElement("video");
+        // DO NOT set src yet — bare Tizen paths cause 404 → onerror → premature crossfade
+        elementWrap.id = "video-" + Date.now();
         elementWrap.setAttribute("type", "video/mp4");
-        // No autoplay - playback is controlled manually in transitionToNextSlide
+        elementWrap.setAttribute("autoplay", "");
         elementWrap.controls = false;
         elementWrap.setAttribute("playsinline", "");
         elementWrap.setAttribute("preload", "auto");
-        elementWrap.muted = (element.attr && element.attr.ismute !== undefined) ? !!element.attr.ismute : true;
-        Logger.info("Video muted state set.", { muted: elementWrap.muted }); //
+        if(element.attr.ismute) {
+            elementWrap.muted = true;
+            Logger.info("Video element set to muted."); //
+        }
         elementWrap.style.position = "absolute";
         elementWrap.style.top = element.top + "px";
         elementWrap.style.left = element.left + "px";
-        elementWrap.style.width = element.width + "px";
-        elementWrap.style.height = element.height + "px";
+        elementWrap.style.fontSize = "14px";
+        elementWrap.style.height = "100%";
         elementWrap.style.zIndex = element.index;
-        elementWrap.style.objectFit = "fill";
-        elementWrap.style.backgroundColor = "#000";
-        
-        var loc = element.attr.location;
-        var isRemote = loc.indexOf('http://') === 0 || loc.indexOf('https://') === 0;
-        var isAbsolute = loc.charAt(0) === '/';
+        elementWrap.style.width = "100%";
 
-        if (isRemote) {
-            // Streaming mode — use HTTP URL directly
+        // Set src: HTTP URLs immediately, local paths after resolve
+        if (loc.indexOf("http://") === 0 || loc.indexOf("https://") === 0) {
             elementWrap.src = loc;
-            Logger.info("Video src set to remote URL (streaming).", { src: loc });
-        } else if (isAbsolute) {
-            // Absolute filesystem path from Download API — prepend file://
-            elementWrap.src = 'file://' + loc;
-            Logger.info("Video src set to local file URI.", { src: elementWrap.src });
+            Logger.info("Video src set directly (HTTP URL).", { src: loc }); //
         } else {
-            // Virtual root path — resolve via Tizen filesystem
             try {
                 if (typeof tizen !== 'undefined' && tizen.filesystem) {
+                    Logger.info("Resolving video file via Tizen filesystem to get URI."); //
                     tizen.filesystem.resolve(
                         loc,
                         function (file) {
                             var uri = tizen.filesystem.toURI(file.fullPath);
                             elementWrap.src = uri;
-                            Logger.info("Video src set via Tizen filesystem URI.", { uri: uri });
+                            Logger.info("Video src set from filesystem URI.", { uri: uri }); //
                         },
                         function (err) {
-                            Logger.error("Video Tizen resolve failed.", { error: err.message });
+                            console.error("Video resolve error:", err.message);
+                            Logger.error("Error resolving video file path.", { error: err.message }); //
+                            // Fallback: try the raw path as last resort
                             elementWrap.src = loc;
                         },
                         "r"
                     );
                 } else {
+                    // Not on Tizen — set src directly
                     elementWrap.src = loc;
                 }
             } catch (e) {
-                Logger.error("Unexpected exception in addVideoElement.", { error: e.message });
+                console.error("Unexpected error during video element setup:", e.message);
+                Logger.error("Unexpected exception in addVideoElement.", { error: e.message }); //
                 elementWrap.src = loc;
             }
         }
-        
+
         return elementWrap;
     }
 
@@ -605,49 +559,12 @@ class Player {
         elementWrap.style.position = "absolute";
         elementWrap.style.top = element.top + "px";
         elementWrap.style.left = element.left + "px";
-        elementWrap.style.width = element.width + "px";
-        elementWrap.style.height = element.height + "px";
+        elementWrap.style.fontSize = "14px";
+        elementWrap.style.height = "100%";
         elementWrap.style.zIndex = element.index;
-        elementWrap.style.objectFit = "contain";
-
-        var loc = element.attr.location;
-        var isRemote = loc.indexOf('http://') === 0 || loc.indexOf('https://') === 0;
-        var isAbsolute = loc.charAt(0) === '/';
-
-        if (isRemote) {
-            elementWrap.src = loc;
-            Logger.info("Image src set to remote URL (streaming).", { src: loc });
-        } else if (isAbsolute) {
-            // Absolute filesystem path from Download API — prepend file://
-            elementWrap.src = 'file://' + loc;
-            Logger.info("Image src set to local file URI.", { src: elementWrap.src });
-        } else {
-            // Virtual root path — resolve via Tizen filesystem
-            try {
-                if (typeof tizen !== 'undefined' && tizen.filesystem) {
-                    tizen.filesystem.resolve(
-                        loc,
-                        function (file) {
-                            var uri = tizen.filesystem.toURI(file.fullPath);
-                            elementWrap.src = uri;
-                            Logger.info("Image src set via Tizen filesystem URI.", { uri: uri });
-                        },
-                        function (err) {
-                            Logger.warn("Image Tizen resolve failed, using raw path.", { error: err.message });
-                            elementWrap.src = loc;
-                        },
-                        "r"
-                    );
-                } else {
-                    elementWrap.src = loc;
-                }
-            } catch (e) {
-                Logger.warn("Image resolve exception, using raw path.", { error: e.message });
-                elementWrap.src = loc;
-            }
-        }
-
-        Logger.info("Image element created.", { location: element.attr.location }); //
+        elementWrap.style.width = "100%";
+        elementWrap.src = element.attr.location;
+        Logger.info("Image element created with src.", { src: element.attr.location }); //
         return elementWrap;
     }
 

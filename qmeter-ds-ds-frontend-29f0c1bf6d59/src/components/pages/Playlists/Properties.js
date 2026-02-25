@@ -10,6 +10,7 @@ import {
   InputNumber,
   Menu,
   message,
+  Progress,
   Row,
   Space,
   Spin,
@@ -48,6 +49,8 @@ import cancel from "../../../assets/images/cancel.svg";
 import checkMark from "../../../assets/images/metro-checkmark.svg";
 import Iframe from "./Items/Site";
 import Table, { defaultColumnThStyleAttr } from "./Items/Table";
+
+const MAX_FILE_SIZE_MB = 50;
 
 const { Panel } = Collapse;
 const { Dragger } = Upload;
@@ -111,6 +114,8 @@ const Properties = ({ size }) => {
     dispatch(deleteFile(deleteFileId));
   };
 
+  const [uploadProgress, setUploadProgress] = useState(0);
+
   const fileUpload = (options) => {
     /*file upload function*/
     const { file } = options;
@@ -119,21 +124,29 @@ const Properties = ({ size }) => {
     formData.append("file", file); //append file
     formData.append("type", type); //append file type , video or image
     setIsLoading(true);
+    setUploadProgress(0);
     const hideMsg = type === "video"
       ? message.loading("Preparing video for display specs (H.264 / 8000 kbps / 30 fps). Please wait, do not close the page...", 0)
       : null;
     axiosClient
-      .post("core/file/", formData)
+      .post("core/file/", formData, {
+        onUploadProgress: (progressEvent) => {
+          const percent = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+          setUploadProgress(percent);
+        },
+      })
       .then(() => {
         hideMsg && hideMsg();
         message.success(`${file.name} file uploaded successfully.`);
         dispatch(uploadFile());
         setIsLoading(false);
+        setUploadProgress(0);
         type === "video" && setTab("2");
       })
       .catch((error) => {
         hideMsg && hideMsg();
         setIsLoading(false);
+        setUploadProgress(0);
         const data = error.response && error.response.data;
         if (data && data.non_field_errors) {
           data.non_field_errors.forEach(function(err) {
@@ -293,8 +306,21 @@ const Properties = ({ size }) => {
   const uploadProps = {
     /*Upload props*/ customRequest: fileUpload,
     multiple: true,
-    accept: "image/* , video/*",
-    beforeUpload: (file) => {},
+    accept: "image/*,video/*",
+    showUploadList: false,
+    beforeUpload: (file) => {
+      const isAllowed = file.type.startsWith("image/") || file.type.startsWith("video/");
+      if (!isAllowed) {
+        message.error(`${file.name} is not an image or video file.`);
+        return Upload.LIST_IGNORE;
+      }
+      const isWithinLimit = file.size / 1024 / 1024 < MAX_FILE_SIZE_MB;
+      if (!isWithinLimit) {
+        message.error(`${file.name} exceeds ${MAX_FILE_SIZE_MB}MB limit.`);
+        return Upload.LIST_IGNORE;
+      }
+      return true;
+    },
   };
 
   const changePanel = (key) => {
@@ -530,34 +556,40 @@ const Properties = ({ size }) => {
                       {isLoadingUpload ? (
                         <Spin />
                       ) : (
-                        uploadDatas
-                          .filter((item) => item.type === "image")
-                          .map((item, index) => (
-                            <div key={index} className="image-crop mt-2 ">
-                              <div
-                                className={"image-crop-inner-div"}
-                                onClick={() => {
-                                  selectedFiles.some((i) => i.id === item.id)
-                                    ? removeFiles(item.id)
-                                    : selectFiles(item);
-                                }}
-                              >
-                                <img src={item.file} alt={`image file` + index} />
-                                {selectedFiles.some((i) => i.id === item.id) && (
-                                  <span className="selected">
-                                    <img src={checkMark} />
-                                  </span>
-                                )}
+                        <>
+                          {uploadDatas
+                            .filter((item) => item.type === "image")
+                            .map((item, index) => (
+                              <div key={item.id} className="image-crop mt-2 ">
+                                <div
+                                  className={"image-crop-inner-div"}
+                                  onClick={() => {
+                                    selectedFiles.some((i) => i.id === item.id)
+                                      ? removeFiles(item.id)
+                                      : selectFiles(item);
+                                  }}
+                                >
+                                  <img
+                                    src={item.thumbnail || item.file}
+                                    alt={`image file` + index}
+                                    loading="lazy"
+                                  />
+                                  {selectedFiles.some((i) => i.id === item.id) && (
+                                    <span className="selected">
+                                      <img src={checkMark} />
+                                    </span>
+                                  )}
+                                </div>
+                                <span onClick={() => toggleDelete(item.id)}>
+                                  <img
+                                    className="cancel"
+                                    src={cancel}
+                                    alt={"cancel"}
+                                  />
+                                </span>
                               </div>
-                              <span onClick={() => toggleDelete(item.id)}>
-                                <img
-                                  className="cancel"
-                                  src={cancel}
-                                  alt={"cancel"}
-                                />
-                              </span>
-                            </div>
-                          ))
+                            ))}
+                        </>
                       )}
                     </div>
                   </Col>
@@ -573,9 +605,13 @@ const Properties = ({ size }) => {
                       {selectedFiles
                         .filter((item) => item.type === "image")
                         .map((item, index) => (
-                          <div className="image-crop mt-2" key={index}>
+                          <div className="image-crop mt-2" key={item.id}>
                             <div className="image-crop-inner-div">
-                              <img src={item.file} alt={`image file` + index} />
+                              <img
+                                src={item.thumbnail || item.file}
+                                alt={`image file` + index}
+                                loading="lazy"
+                              />
                               <span onClick={() => removeFiles(item.id)}>
                                 <img
                                   className="cancel"
@@ -611,36 +647,46 @@ const Properties = ({ size }) => {
                       {isLoadingUpload ? (
                         <Spin />
                       ) : (
-                        uploadDatas
-                          .filter((item) => item.type === "video")
-                          .map((item, index) => (
-                            <div key={index} className="image-crop mt-2">
-                              <div
-                                className="image-crop-inner-div"
-                                onClick={() => {
-                                  selectedFiles.some((i) => i.id === item.id)
-                                    ? removeFiles(item.id)
-                                    : selectFiles(item);
-                                }}
-                              >
-                                <video preload="metadata" muted playsInline>
-                                  <source src={`${item.file}#t=0.1`} type="video/mp4" />
-                                </video>
-                                {selectedFiles.some((i) => i.id === item.id) && (
-                                  <span className="selected">
-                                    <img src={checkMark} />
-                                  </span>
-                                )}
+                        <>
+                          {uploadDatas
+                            .filter((item) => item.type === "video")
+                            .map((item, index) => (
+                              <div key={item.id} className="image-crop mt-2">
+                                <div
+                                  className="image-crop-inner-div"
+                                  onClick={() => {
+                                    selectedFiles.some((i) => i.id === item.id)
+                                      ? removeFiles(item.id)
+                                      : selectFiles(item);
+                                  }}
+                                >
+                                  {item.thumbnail ? (
+                                    <img
+                                      src={item.thumbnail}
+                                      alt={`video file` + index}
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <video preload="metadata" muted playsInline>
+                                      <source src={`${item.file}#t=0.1`} type="video/mp4" />
+                                    </video>
+                                  )}
+                                  {selectedFiles.some((i) => i.id === item.id) && (
+                                    <span className="selected">
+                                      <img src={checkMark} />
+                                    </span>
+                                  )}
+                                </div>
+                                <span onClick={() => toggleDelete(item.id)}>
+                                  <img
+                                    className="cancel"
+                                    src={cancel}
+                                    alt={"cancel"}
+                                  />
+                                </span>
                               </div>
-                              <span onClick={() => toggleDelete(item.id)}>
-                                <img
-                                  className="cancel"
-                                  src={cancel}
-                                  alt={"cancel"}
-                                />
-                              </span>
-                            </div>
-                          ))
+                            ))}
+                        </>
                       )}
                     </div>
                   </Col>
@@ -656,11 +702,19 @@ const Properties = ({ size }) => {
                       {selectedFiles
                         .filter((item) => item.type === "video")
                         .map((item, index) => (
-                          <div key={index} className="image-crop mt-2">
+                          <div key={item.id} className="image-crop mt-2">
                             <div className="image-crop-inner-div">
-                              <video preload="metadata" muted playsInline>
-                                <source src={`${item.file}#t=0.1`} type="video/mp4" />
-                              </video>
+                              {item.thumbnail ? (
+                                <img
+                                  src={item.thumbnail}
+                                  alt={`video file` + index}
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <video preload="metadata" muted playsInline>
+                                  <source src={`${item.file}#t=0.1`} type="video/mp4" />
+                                </video>
+                              )}
                               <span onClick={() => removeFiles(item.id)}>
                                 <img
                                   className="cancel"
@@ -679,34 +733,23 @@ const Properties = ({ size }) => {
           },
         ]} />
         <Divider />
-        {isLoading ? (
-          <Spin>
-            <Dragger {...uploadProps}>
-              <p className="ant-upload-drag-icon">
-                <InboxOutlined />
-              </p>
-              <p className="ant-upload-text">
-                Click or drag file to this area to upload
-              </p>
-              <p className="ant-upload-hint">
-                Support for a single or bulk upload. Strictly prohibit from
-                uploading company data or other band files
-              </p>
-            </Dragger>
-          </Spin>
-        ) : (
-          <Dragger {...uploadProps}>
-            <p className="ant-upload-drag-icon">
-              <InboxOutlined />
-            </p>
-            <p className="ant-upload-text">
-              Click or drag file to this area to upload
-            </p>
-            <p className="ant-upload-hint">
-              Support for a single or bulk upload. Strictly prohibit from
-              uploading company data or other band files
-            </p>
-          </Dragger>
+        <Dragger {...uploadProps}>
+          <p className="ant-upload-drag-icon">
+            <InboxOutlined />
+          </p>
+          <p className="ant-upload-text">
+            Click or drag file to this area to upload
+          </p>
+          <p className="ant-upload-hint">
+            Support for a single or bulk upload. Max {MAX_FILE_SIZE_MB}MB per file.
+          </p>
+        </Dragger>
+        {isLoading && (
+          <Progress
+            percent={uploadProgress}
+            status={uploadProgress < 100 ? "active" : "success"}
+            style={{ marginTop: 8 }}
+          />
         )}
         <div className="mt-3 d-flex justify-content-end">
           <Button onClick={toggle} className="mx-2">
