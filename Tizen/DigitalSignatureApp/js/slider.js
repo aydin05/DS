@@ -128,6 +128,16 @@ class Player {
         if (this._stopped) return;
         Logger.info("Transitioning to next slide.");
 
+        // Safety net: kill any orphaned video elements not tracked by us
+        var allVids = document.querySelectorAll("video");
+        for (var i = 0; i < allVids.length; i++) {
+            var v = allVids[i];
+            if (v !== this.videoElement && v !== this._backVideoElement) {
+                Logger.warn("Killing orphaned video element.", { id: v.id });
+                this._killVideo(v);
+            }
+        }
+
         var frontContainer = document.getElementById("content-wrap");
         var backContainer = this._backContainer;
 
@@ -148,49 +158,44 @@ class Player {
 
             var promoteBack = function () {
                 if (self._stopped) return;
-
-                // Promote back to front FIRST
                 backContainer.id = "content-wrap";
                 backContainer.style.zIndex = "2";
                 backContainer.style.pointerEvents = "";
 
-                // Unmute
+                // Unmute and resume back video (it was paused after warm-up)
                 if (self.videoElement) {
                     self.videoElement.muted = self._backVideoOriginalMuted;
+                    try { self.videoElement.play(); } catch (e) {}
                 }
 
                 Logger.info("Transition complete.", { currentSlide: self.currentSlide });
-
                 var slideData = self.slides[self.currentSlide - 1];
                 self.slideDuration = (slideData.duration || 5) * 1000;
                 self._startTimerAndLoadBack();
             };
 
             if (hasOldVideo && hasNewVideo) {
-                // VIDEO → VIDEO: instant swap
-                // Tizen uses hardware overlays for video — DOM removal alone
-                // doesn't clear the overlay. Must hide the VIDEO ELEMENT itself
-                // (display:none + size 0) to kill the hardware overlay, then
-                // defer cleanup to the next frame so compositor can process.
-                Logger.info("Video→Video: instant swap.");
+                // VIDEO → VIDEO: instant hide + delayed destruction
+                Logger.info("Video→Video: instant hide + delayed destroy.");
 
-                // Step 1: Kill old video's hardware overlay immediately
-                oldVideo.style.display = "none";
-                oldVideo.style.width = "0";
-                oldVideo.style.height = "0";
+                // 1. Instantly hide front container (no CSS transition)
+                if (frontContainer) {
+                    frontContainer.style.transition = "none";
+                    frontContainer.style.opacity = "0";
+                    frontContainer.style.zIndex = "-1";
+                }
 
-                // Step 2: Promote back to front (now visible)
+                // 2. Promote back to front
                 promoteBack();
 
-                // Step 3: Deferred cleanup — let compositor process the hide first
-                requestAnimationFrame(function () {
-                    try { oldVideo.pause(); } catch (e) {}
-                    try {
-                        oldVideo.removeAttribute("src");
-                        oldVideo.load();
-                    } catch (e) {}
+                // 3. Keep old video alive briefly, then destroy.
+                //    Destroying immediately causes Tizen media server to
+                //    freeze last frames on the hardware overlay during IPC.
+                setTimeout(function () {
+                    self._killVideo(oldVideo);
                     if (frontContainer) frontContainer.remove();
-                });
+                }, 300);
+
             } else {
                 // Non-video transition: 300ms crossfade
                 if (frontContainer) {
@@ -198,6 +203,7 @@ class Player {
                     frontContainer.style.opacity = "0";
                 }
                 setTimeout(function () {
+                    if (self._stopped) return;
                     if (oldVideo) {
                         try { oldVideo.pause(); } catch (e) {}
                     }
@@ -298,6 +304,23 @@ class Player {
         if (this._backVideoElement) {
             this._backVideoOriginalMuted = this._backVideoElement.muted;
             this._backVideoElement.muted = true;
+
+            // Once the decoder is warm (video starts playing), PAUSE it
+            // so it doesn't advance. This way when promoted at transition
+            // time, the video starts from near the beginning (~0.1s).
+            // promoteBack() will call play() to resume.
+            var backVid = this._backVideoElement;
+            if (!backVid.paused && backVid.readyState >= 3) {
+                // Already playing — pause now
+                backVid.pause();
+                Logger.info("Back video paused after warm-up (immediate).");
+            } else {
+                backVid.addEventListener("playing", function onP() {
+                    backVid.removeEventListener("playing", onP);
+                    backVid.pause();
+                    Logger.info("Back video paused after warm-up (event).");
+                });
+            }
         }
 
         this._backContainer = container;
@@ -305,10 +328,18 @@ class Player {
         Logger.info("Back layer created.", { nextIndex: nextIndex });
     }
 
+    // Fully destroy a video element and release its decoder
+    _killVideo(vid) {
+        if (!vid) return;
+        try { vid.pause(); } catch (e) {}
+        try { vid.src = ""; vid.load(); } catch (e) {}
+        try { if (vid.parentNode) vid.parentNode.removeChild(vid); } catch (e) {}
+    }
+
     _cleanupBack() {
         if (this._backContainer) {
             var vid = this._backContainer.querySelector("video");
-            if (vid) { try { vid.pause(); } catch (e) {} }
+            this._killVideo(vid);
             this._backContainer.remove();
             this._backContainer = null;
             this._backVideoElement = null;
@@ -388,15 +419,13 @@ class Player {
         this.isSlidePlaying = true;
         var self = this;
 
-        // Delay back layer loading by 500ms to let Tizen fully release
-        // the old video decoder. Tizen 7 has only 2 decoders — if we
-        // create a new one while the old one is still being freed, we
-        // get stuttering/overlay artifacts.
+        // Delay back layer loading by 1000ms to let Tizen fully release
+        // the old video decoder before we request a new one.
         setTimeout(function () {
             if (!self._stopped && self.isSlidePlaying) {
                 self._loadBackLayer();
             }
-        }, 500);
+        }, 1000);
 
         var tick = function (timestamp) {
             if (!self.isSlidePlaying) return;
@@ -499,6 +528,7 @@ class Player {
         let elementWrap = document.createElement("video");
         // DO NOT set src yet — bare Tizen paths cause 404 → onerror → premature crossfade
         elementWrap.id = "video-" + Date.now();
+        elementWrap.setAttribute("data-tizen-video", "true");
         elementWrap.setAttribute("type", "video/mp4");
         elementWrap.setAttribute("autoplay", "");
         elementWrap.controls = false;
