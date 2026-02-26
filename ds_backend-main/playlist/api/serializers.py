@@ -204,8 +204,11 @@ class SlideItemSerializer(ModelSerializer):
         return obj.top
 
     def get_display_types(self,obj):
-        # Single query per item (was 5 queries before)
-        slide_item_display_types = SlideItemDisplayType.objects.filter(slide_item=obj).select_related('display_type')
+        # Use prefetched data if available, otherwise fall back to query
+        if hasattr(obj, '_prefetched_objects_cache') and 'slideitemdisplaytype_set' in obj._prefetched_objects_cache:
+            slide_item_display_types = obj._prefetched_objects_cache['slideitemdisplaytype_set']
+        else:
+            slide_item_display_types = obj.slideitemdisplaytype_set.all().select_related('display_type')
         display_type = self.context['display_type']
         display_types = []
         matched = None
@@ -254,7 +257,7 @@ class SlideSerializer(ModelSerializer):
         fields = ("id", 'name', 'position', 'duration', 'playlist', 'bg_color', 'items')
 
     def get_items(self, obj):
-        slide_items = list(obj.slideitem_set.all())
+        slide_items = list(obj.slideitem_set.all().prefetch_related('slideitemdisplaytype_set__display_type'))
         display_type = self.context['display_type']
         for slide_item in slide_items:
             location = slide_item.attr.get('location', None)
@@ -311,7 +314,9 @@ class PlaylistDetailSerializer(ModelSerializer):
     def get_slides(self, obj):
         if obj.slides:
             return obj.slides
-        slide = obj.slide_set.all().order_by('position')
+        slide = obj.slide_set.all().order_by('position').prefetch_related(
+            'slideitem_set__slideitemdisplaytype_set__display_type'
+        )
         display_type = self.context['request'].GET.get('display_type')
         if not display_type:
             display_type = obj.default_display_type

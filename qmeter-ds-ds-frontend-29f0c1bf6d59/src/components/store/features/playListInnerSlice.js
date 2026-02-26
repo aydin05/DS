@@ -74,8 +74,8 @@ const uploadFile = createAsyncThunk("uploadFile", async () => {
   return response.data;
 });
 const deleteFile = createAsyncThunk("deleteFile", async (id) => {
-  const response = await axiosClient.delete(`core/file/${id}`);
-  return response.data;
+  await axiosClient.delete(`core/file/${id}`);
+  return id;
 });
 const saveSlideSlice = createAsyncThunk(
   "saveSlideSlice",
@@ -768,9 +768,11 @@ const playListInnerSlice = createSlice({
       state.isLoadingUpload = true;
       state.deleteStatus = true;
     });
-    builder.addCase(deleteFile.fulfilled, (state) => {
+    builder.addCase(deleteFile.fulfilled, (state, action) => {
       state.isLoadingUpload = false;
-      state.fileStatus = true;
+      state.uploadDatas = state.uploadDatas.filter((f) => f.id !== action.payload);
+      state.isOpenDeleteModal = false;
+      state.deleteStatus = false;
     });
     builder.addCase(deleteFile.rejected, (state) => {
       state.isLoadingUpload = false;

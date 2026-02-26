@@ -1,5 +1,5 @@
 
-services: 
+services:
     postgres:
         image: postgres:16
         restart: always
@@ -8,6 +8,12 @@ services:
         ports:
             - "5432:5432"
         env_file: .env
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+            interval: 10s
+            timeout: 5s
+            retries: 5
+            start_period: 10s
 
 
     web:
@@ -33,7 +39,8 @@ services:
             - ./static/:/code/static
             - ./media/:/code/media
         depends_on:
-            - "postgres"
+            postgres:
+                condition: service_healthy
         env_file: .env
 
 networks:

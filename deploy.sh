@@ -39,6 +39,7 @@ DEPLOY_FRONTEND=false
 DEPLOY_BACKEND=false
 DEPLOY_TIZEN=false
 SKIP_BUILD=false
+SKIP_NPM_INSTALL=false
 
 usage() {
     echo "Usage: $0 [options]"
@@ -48,14 +49,16 @@ usage() {
     echo "  --backend     Deploy backend only"
     echo "  --tizen-app   Deploy Tizen URL Launcher app (static site)"
     echo "  --all         Deploy frontend + backend + tizen-app"
-    echo "  --skip-build  Skip frontend npm build (use existing build/ folder)"
-    echo "  -h, --help    Show this help"
+    echo "  --skip-build       Skip frontend npm build (use existing build/ folder)"
+    echo "  --skip-npm-install Skip npm install even if node_modules is missing"
+    echo "  -h, --help         Show this help"
     echo ""
     echo "Examples:"
-    echo "  $0 --all              # Build frontend locally + deploy both"
-    echo "  $0 --frontend         # Build + deploy frontend only"
-    echo "  $0 --backend          # Deploy backend only"
-    echo "  $0 --frontend --skip-build  # Deploy frontend without rebuilding"
+    echo "  $0 --all                          # Build frontend locally + deploy both"
+    echo "  $0 --frontend                     # Build + deploy frontend only"
+    echo "  $0 --backend                      # Deploy backend only"
+    echo "  $0 --frontend --skip-build        # Deploy frontend without rebuilding"
+    echo "  $0 --frontend --skip-npm-install  # Build but skip npm install step"
 }
 
 if [ $# -eq 0 ]; then
@@ -71,6 +74,7 @@ while [[ $# -gt 0 ]]; do
         --tizen-app) DEPLOY_TIZEN=true; shift ;;
         --all)       DEPLOY_FRONTEND=true; DEPLOY_BACKEND=true; DEPLOY_TIZEN=true; shift ;;
         --skip-build) SKIP_BUILD=true; shift ;;
+        --skip-npm-install) SKIP_NPM_INSTALL=true; shift ;;
         -h|--help)   usage; exit 0 ;;
         *)           err "Unknown option: $1. Use --help for usage." ;;
     esac
@@ -112,7 +116,9 @@ if [ "$DEPLOY_FRONTEND" = true ]; then
 
         log "Installing frontend dependencies..."
         cd "${FRONTEND_DIR}"
-        if [ ! -d "node_modules" ]; then
+        if [ "$SKIP_NPM_INSTALL" = true ]; then
+            warn "Skipping npm install (--skip-npm-install)"
+        elif [ ! -d "node_modules" ]; then
             npm install 2>&1 | tail -5
             log "npm install complete"
         else
@@ -154,9 +160,6 @@ if [ "$DEPLOY_FRONTEND" = true ]; then
         "${SSH_TARGET}:${REMOTE_FRONTEND}/"
 
     # Step 3: Rebuild and restart frontend container
-    # Ensure docker-compose.yml uses Dockerfile.serve (lightweight, pre-built)
-    ssh ${SSH_TARGET} "grep -q 'Dockerfile.serve' ${REMOTE_FRONTEND}/docker-compose.yml || sed -i 's|context: .|context: .\n      dockerfile: Dockerfile.serve|' ${REMOTE_FRONTEND}/docker-compose.yml"
-
     log "Rebuilding and restarting frontend container..."
     ssh ${SSH_OPTS} ${SSH_TARGET} "cd ${REMOTE_FRONTEND} && docker compose up -d --build 2>&1"
     log "Frontend container restarted"
@@ -203,9 +206,28 @@ if [ "$DEPLOY_BACKEND" = true ]; then
     ssh ${SSH_TARGET} "cd ${REMOTE_BACKEND} && docker compose up -d --force-recreate --no-deps web 2>&1"
     log "Backend container restarted"
 
+    # Wait for container to be running before executing commands inside it
+    log "Waiting for dsqmeter container to be ready..."
+    ssh ${SSH_OPTS} ${SSH_TARGET} '
+        for i in $(seq 1 30); do
+            STATUS=$(docker inspect --format="{{.State.Status}}" dsqmeter 2>/dev/null || echo "missing")
+            if [ "$STATUS" = "running" ]; then
+                echo "Container is running."
+                break
+            fi
+            echo "  Waiting... ($i/30) status=$STATUS"
+            sleep 2
+        done
+        if [ "$STATUS" != "running" ]; then
+            echo "ERROR: dsqmeter did not start in time" >&2
+            exit 1
+        fi
+    '
+    log "Container ready"
+
     # Step 3: Run migrations
     log "Running database migrations..."
-    ssh ${SSH_TARGET} "docker exec dsqmeter python manage.py migrate --noinput 2>&1 | tail -5"
+    ssh ${SSH_OPTS} ${SSH_TARGET} "docker exec dsqmeter python manage.py migrate --noinput 2>&1 | tail -10"
     log "Migrations complete"
 
     # Step 4: Collect static files
@@ -312,7 +334,7 @@ echo "  VERIFICATION"
 echo "========================================"
 
 log "Checking running containers..."
-ssh ${SSH_TARGET} "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' | grep -E 'ds|nginx|postgres'"
+ssh ${SSH_TARGET} "docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'" | grep -E 'ds|nginx|postgres|NAMES' || true
 
 echo ""
 log "Checking frontend health..."

@@ -31,7 +31,6 @@ const PlaylistEditor = () => {
     slideStatus,
     widgetTypes,
     display_id,
-    savedSlide,
     isMutated,
   } = useSelector((state) => state.playListInnerSlice);
   const playListSlice = useSelector((state) => state.playListSlice);
@@ -103,18 +102,6 @@ const PlaylistEditor = () => {
       dispatch(fetchSlides({ id: params.id, display_type, data: widgetTypes }));
     }
   }, [widgetTypes, playListSlice.formValue?.default_display_type?.id]);
-
-  useEffect(() => {
-    if (savedSlide) {
-      dispatch(
-        fetchSlides({
-          id: params.id,
-          display_type: display_id,
-          data: widgetTypes,
-        }),
-      );
-    }
-  }, [savedSlide]);
 
   useEffect(() => {
     if (playListSlice.requestStatus === "update") {

@@ -1,14 +1,17 @@
 /**
- * Player — Tizen 7 dual-decoder slide player.
+ * Player — Tizen slide player with platform-adaptive video transitions.
  *
- * Simple approach:
- * 1. Show current slide (front layer, z-index 2)
- * 2. IMMEDIATELY load next slide behind it (back layer, z-index 1, opacity 1, muted)
- *    → Second decoder has the ENTIRE slide duration to load & render frames
- * 3. When timer fires → fade out front → back is already visible
- * 4. Promote back to front, load next behind it again
+ * Tizen 7+ (2 decoders — dual-decoder mode):
+ *   1. Show current slide (front layer, z-index 2)
+ *   2. Load next slide behind it (back layer, z-index 1, opacity 1, muted)
+ *   3. Pause back video after decoder warms up (stays at frame 0)
+ *   4. Timer fires → hide front, play() back, destroy old after 300ms
  *
- * No pause/reset/play on videos — that causes black frames on Tizen.
+ * Tizen 4 (1 decoder — single-decoder mode):
+ *   1. Show current slide (front layer)
+ *   2. Load next slide behind it (back video NOT autoplayed, just preloaded)
+ *   3. Timer fires → capture old frame to canvas → kill old video →
+ *      play() new video → once playing, remove canvas
  */
 class Player {
     constructor(slides) {
@@ -34,10 +37,21 @@ class Player {
         // Back layer
         this._backContainer = null;
         this._backSlideIndex = -1;
+        this._backVideoItem = null;  // stored video item data for single-decoder src-swap
 
         this._stopped = false;
 
-        Logger.info("Player initialized.", { slideCount: slides.length });
+        // Detect Tizen version for decoder strategy
+        // Tizen 7+ has 2 hardware video decoders; Tizen 4 has only 1
+        this._dualDecoder = false;
+        try {
+            var ua = navigator.userAgent || "";
+            var m = ua.match(/Tizen\s+(\d+)/);
+            if (m && parseInt(m[1], 10) >= 7) {
+                this._dualDecoder = true;
+            }
+        } catch (e) {}
+        Logger.info("Player initialized.", { slideCount: slides.length, dualDecoder: this._dualDecoder });
     }
 
     // ─── Lifecycle ────────────────────────────────────────────────────
@@ -116,10 +130,19 @@ class Player {
         this.videoElement = null;
         this._populateContainer(container, slideData.items);
 
-        // Wait for media to be ready, then start timer + load back layer
-        this._waitForMedia(container, function () {
+        if (this._dualDecoder) {
+            // TIZEN 7: wait for video to render a frame, then reveal
+            this._waitForMedia(container, function () {
+                container.style.opacity = "1";
+            });
+        } else {
+            // TIZEN 4: show immediately at opacity 1.
+            // Hole-punch video CANNOT render through opacity-0 parent,
+            // so we must be visible from the start.
             container.style.opacity = "1";
-        });
+            Logger.info("First slide shown immediately (single decoder).");
+            this._startTimerAndLoadBack();
+        }
     }
 
     // ─── Transition to next slide ────────────────────────────────────
@@ -144,13 +167,26 @@ class Player {
         // If back layer exists and matches next slide, use it
         var nextIndex = (this.currentSlide === this.slidesCount) ? 1 : this.currentSlide + 1;
 
+        // TIZEN 4 (single decoder): back layer was loaded WITHOUT video.
+        // If next slide needs a video, skip back layer and use showSlide()
+        // which properly kills old → creates new → shows at opacity 1.
+        if (!this._dualDecoder && this._backVideoItem) {
+            Logger.info("Single decoder: next slide has video, using showSlide fallback.");
+            this._cleanupBack();
+            this.currentSlide = nextIndex;
+            this.showSlide(this.currentSlide);
+            return;
+        }
+
         if (backContainer && this._backSlideIndex === nextIndex) {
             this.currentSlide = nextIndex;
             var oldVideo = this.videoElement;
+            var backVideoItem = this._backVideoItem;
             this.videoElement = this._backVideoElement;
             this._backContainer = null;
             this._backVideoElement = null;
             this._backSlideIndex = -1;
+            this._backVideoItem = null;
 
             var self = this;
             var hasOldVideo = !!oldVideo;
@@ -174,23 +210,18 @@ class Player {
                 self._startTimerAndLoadBack();
             };
 
-            if (hasOldVideo && hasNewVideo) {
-                // VIDEO → VIDEO: instant hide + delayed destruction
-                Logger.info("Video→Video: instant hide + delayed destroy.");
+            if (hasOldVideo && hasNewVideo && self._dualDecoder) {
+                // DUAL DECODER (Tizen 7+): instant hide + delayed destruction
+                Logger.info("Video→Video [dual]: instant hide + delayed destroy.");
 
-                // 1. Instantly hide front container (no CSS transition)
                 if (frontContainer) {
                     frontContainer.style.transition = "none";
                     frontContainer.style.opacity = "0";
                     frontContainer.style.zIndex = "-1";
                 }
 
-                // 2. Promote back to front
                 promoteBack();
 
-                // 3. Keep old video alive briefly, then destroy.
-                //    Destroying immediately causes Tizen media server to
-                //    freeze last frames on the hardware overlay during IPC.
                 setTimeout(function () {
                     self._killVideo(oldVideo);
                     if (frontContainer) frontContainer.remove();
@@ -245,31 +276,59 @@ class Player {
 
         var oldVideo = this.videoElement;
         this.videoElement = null;
-        this._populateContainer(nextContainer, slideData.items);
-
         var self = this;
-        this._waitForMedia(nextContainer, function () {
-            // Fade in next, fade out current
-            nextContainer.style.transition = "opacity 0.3s ease-in-out";
-            nextContainer.style.opacity = "1";
-            if (currentContainer) {
-                currentContainer.style.transition = "opacity 0.3s ease-in-out";
-                currentContainer.style.opacity = "0";
-            }
 
+        if (!this._dualDecoder) {
+            // TIZEN 4 (single decoder): kill old video, wait for decoder
+            // release, then create new video.
+            // 1. Kill old video to free the single decoder
+            if (oldVideo) {
+                Logger.info("showSlide: killing old video before populate (single decoder).");
+                this._killVideo(oldVideo);
+                oldVideo = null;
+            }
+            // 2. Remove old container immediately
+            if (currentContainer) currentContainer.remove();
+            // 3. Append next container to DOM and show at opacity 1
+            //    (hole-punch can't render through opacity-0 parent)
+            document.body.appendChild(nextContainer);
+            nextContainer.id = "content-wrap";
+            nextContainer.style.zIndex = "2";
+            nextContainer.style.opacity = "1";
+            // 4. Wait 500ms for Tizen 4 to release the single decoder,
+            //    then create and populate the new video element.
             setTimeout(function () {
                 if (self._stopped) return;
-                if (currentContainer) currentContainer.remove();
-                nextContainer.id = "content-wrap";
-                nextContainer.style.zIndex = "2";
+                self._populateContainer(nextContainer, slideData.items);
+                Logger.info("showSlide: delayed populate done (single decoder).", { slideIndex: slideIndex });
+                self._startTimerAndLoadBack();
+            }, 500);
+        } else {
+            // TIZEN 7 (dual decoder): crossfade transition
+            this._populateContainer(nextContainer, slideData.items);
 
-                if (oldVideo) {
-                    try { oldVideo.pause(); } catch (e) {}
+            this._waitForMedia(nextContainer, function () {
+                nextContainer.style.transition = "opacity 0.3s ease-in-out";
+                nextContainer.style.opacity = "1";
+                if (currentContainer) {
+                    currentContainer.style.transition = "opacity 0.3s ease-in-out";
+                    currentContainer.style.opacity = "0";
                 }
 
-                self._startTimerAndLoadBack();
-            }, 300);
-        });
+                setTimeout(function () {
+                    if (self._stopped) return;
+                    if (currentContainer) currentContainer.remove();
+                    nextContainer.id = "content-wrap";
+                    nextContainer.style.zIndex = "2";
+
+                    if (oldVideo) {
+                        try { oldVideo.pause(); } catch (e) {}
+                    }
+
+                    self._startTimerAndLoadBack();
+                }, 300);
+            });
+        }
     }
 
     // ─── Back layer loading ──────────────────────────────────────────
@@ -283,20 +342,36 @@ class Player {
 
         this._cleanupBack();
 
-        Logger.info("Loading back layer.", { nextIndex: nextIndex });
+        Logger.info("Loading back layer.", { nextIndex: nextIndex, dualDecoder: this._dualDecoder });
         var slideData = this.slides[nextIndex - 1];
 
         // Create back layer: z-index 1 (BEHIND front which is z-index 2)
-        // opacity MUST be 1 so Tizen decoder actually renders video frames
         var container = this._createContainer("back-content-wrap", "1");
-        container.style.opacity = "1";
         container.style.pointerEvents = "none";
+        if (this._dualDecoder) {
+            // DUAL DECODER: opacity MUST be 1 so Tizen decoder renders frames
+            container.style.opacity = "1";
+        } else {
+            // SINGLE DECODER: keep hidden (opacity 0) to avoid blocking
+            // hole-punch video rendering. Images still preload in DOM.
+            container.style.opacity = "0";
+        }
         document.body.appendChild(container);
 
         // Populate (this sets this.videoElement temporarily)
         var savedVideo = this.videoElement;
         this.videoElement = null;
-        this._populateContainer(container, slideData.items);
+        this._backVideoItem = null;
+
+        if (this._dualDecoder) {
+            // DUAL DECODER: populate everything including video
+            this._populateContainer(container, slideData.items);
+        } else {
+            // SINGLE DECODER: populate everything EXCEPT video.
+            // Save video item data for src-swap at transition time.
+            this._populateContainer(container, slideData.items, true);
+        }
+
         this._backVideoElement = this.videoElement;
         this.videoElement = savedVideo;
 
@@ -305,13 +380,11 @@ class Player {
             this._backVideoOriginalMuted = this._backVideoElement.muted;
             this._backVideoElement.muted = true;
 
-            // Once the decoder is warm (video starts playing), PAUSE it
-            // so it doesn't advance. This way when promoted at transition
-            // time, the video starts from near the beginning (~0.1s).
+            // DUAL DECODER: let video autoplay to warm decoder,
+            // then pause so it doesn't advance past frame 0.
             // promoteBack() will call play() to resume.
             var backVid = this._backVideoElement;
             if (!backVid.paused && backVid.readyState >= 3) {
-                // Already playing — pause now
                 backVid.pause();
                 Logger.info("Back video paused after warm-up (immediate).");
             } else {
@@ -325,7 +398,44 @@ class Player {
 
         this._backContainer = container;
         this._backSlideIndex = nextIndex;
-        Logger.info("Back layer created.", { nextIndex: nextIndex });
+        Logger.info("Back layer created.", { nextIndex: nextIndex, hasBackVideo: !!this._backVideoElement, hasBackVideoItem: !!this._backVideoItem });
+    }
+
+    // Resolve and set a video element's src (handles local Tizen paths)
+    // Optional callback fires after src is actually set
+    _setVideoSrc(vid, loc, callback) {
+        var cb = callback || function () {};
+        if (loc.indexOf("http://") === 0 || loc.indexOf("https://") === 0) {
+            vid.src = loc;
+            Logger.info("Video src set directly (HTTP).", { src: loc });
+            cb();
+        } else {
+            try {
+                if (typeof tizen !== 'undefined' && tizen.filesystem) {
+                    tizen.filesystem.resolve(
+                        loc,
+                        function (file) {
+                            var uri = tizen.filesystem.toURI(file.fullPath);
+                            vid.src = uri;
+                            Logger.info("Video src set from filesystem URI.", { uri: uri });
+                            cb();
+                        },
+                        function (err) {
+                            Logger.error("Video resolve error.", { error: err.message });
+                            vid.src = loc;
+                            cb();
+                        },
+                        "r"
+                    );
+                } else {
+                    vid.src = loc;
+                    cb();
+                }
+            } catch (e) {
+                vid.src = loc;
+                cb();
+            }
+        }
     }
 
     // Fully destroy a video element and release its decoder
@@ -344,6 +454,7 @@ class Player {
             this._backContainer = null;
             this._backVideoElement = null;
             this._backSlideIndex = -1;
+            this._backVideoItem = null;
         }
     }
 
@@ -419,13 +530,16 @@ class Player {
         this.isSlidePlaying = true;
         var self = this;
 
-        // Delay back layer loading by 1000ms to let Tizen fully release
-        // the old video decoder before we request a new one.
-        setTimeout(function () {
-            if (!self._stopped && self.isSlidePlaying) {
-                self._loadBackLayer();
-            }
-        }, 1000);
+        // Pre-load back layer (dual-decoder only).
+        // On single-decoder (Tizen 4), skip entirely — back layer
+        // would interfere with hole-punch video rendering.
+        if (self._dualDecoder) {
+            setTimeout(function () {
+                if (!self._stopped && self.isSlidePlaying) {
+                    self._loadBackLayer();
+                }
+            }, 1000);
+        }
 
         var tick = function (timestamp) {
             if (!self.isSlidePlaying) return;
@@ -442,7 +556,7 @@ class Player {
 
     // ─── Populate container ──────────────────────────────────────────
 
-    _populateContainer(container, slideItems) {
+    _populateContainer(container, slideItems, skipVideo) {
         if (this.isGlobalString) {
             container.appendChild(this.addTextElement(this.globalSlide));
         }
@@ -455,8 +569,14 @@ class Player {
                     element = this.addTextElement(item);
                     break;
                 case "video":
-                    element = this.addVideoElement(item);
-                    this.videoElement = element;
+                    if (skipVideo) {
+                        // Single-decoder: save item data, don't create element
+                        this._backVideoItem = item;
+                        Logger.info("Skipping video in back layer (single decoder).", { location: item.attr.location });
+                    } else {
+                        element = this.addVideoElement(item);
+                        this.videoElement = element;
+                    }
                     break;
                 case "image":
                     element = this.addImageElement(item);
@@ -525,6 +645,7 @@ class Player {
     addVideoElement(element) {
         Logger.info("addVideoElement invoked.", { url: element.attr.location }); //
         var loc = element.attr.location;
+        var needsExplicitPlay = !this._dualDecoder; // Tizen 4: autoplay won't re-trigger after async src
         let elementWrap = document.createElement("video");
         // DO NOT set src yet — bare Tizen paths cause 404 → onerror → premature crossfade
         elementWrap.id = "video-" + Date.now();
@@ -536,6 +657,7 @@ class Player {
         elementWrap.setAttribute("preload", "auto");
         if(element.attr.ismute) {
             elementWrap.muted = true;
+            elementWrap.setAttribute("muted", "");
             Logger.info("Video element set to muted."); //
         }
         elementWrap.style.position = "absolute";
@@ -546,11 +668,38 @@ class Player {
         elementWrap.style.zIndex = element.index;
         elementWrap.style.width = "100%";
 
-        // Set src: HTTP URLs immediately, local paths after resolve
+        // Set src based on platform and path type
         if (loc.indexOf("http://") === 0 || loc.indexOf("https://") === 0) {
             elementWrap.src = loc;
             Logger.info("Video src set directly (HTTP URL).", { src: loc }); //
+        } else if (needsExplicitPlay) {
+            // TIZEN 4 (single decoder): convert path to file:// URI synchronously
+            // using tizen.filesystem.toURI(), then set src and play on canplay.
+            // The async tizen.filesystem.resolve() causes timing issues on Tizen 4.
+            var videoSrc = loc;
+            try {
+                if (typeof tizen !== 'undefined' && tizen.filesystem && tizen.filesystem.toURI) {
+                    videoSrc = tizen.filesystem.toURI(loc);
+                    Logger.info("Video src converted via toURI (single decoder).", { raw: loc, uri: videoSrc });
+                }
+            } catch (e) {
+                Logger.warn("toURI failed, using raw path.", { error: e.message, path: loc });
+            }
+            elementWrap.src = videoSrc;
+            // Play when enough data is loaded (element may not be in DOM yet)
+            var shouldMute = !!element.attr.ismute;
+            elementWrap.addEventListener("canplay", function onCanPlay() {
+                elementWrap.removeEventListener("canplay", onCanPlay);
+                // Re-enforce mute before play — Tizen 4 Chromium can reset it
+                if (shouldMute) elementWrap.muted = true;
+                try { elementWrap.play(); } catch (e) {
+                    Logger.warn("play() on canplay failed (single decoder).", { error: e.message });
+                }
+                Logger.info("Video play() called on canplay event (single decoder).", { muted: elementWrap.muted });
+            });
+            Logger.info("Video src set (single decoder).", { src: videoSrc });
         } else {
+            // TIZEN 7 (dual decoder): async resolve works fine here
             try {
                 if (typeof tizen !== 'undefined' && tizen.filesystem) {
                     Logger.info("Resolving video file via Tizen filesystem to get URI."); //
@@ -564,13 +713,11 @@ class Player {
                         function (err) {
                             console.error("Video resolve error:", err.message);
                             Logger.error("Error resolving video file path.", { error: err.message }); //
-                            // Fallback: try the raw path as last resort
                             elementWrap.src = loc;
                         },
                         "r"
                     );
                 } else {
-                    // Not on Tizen — set src directly
                     elementWrap.src = loc;
                 }
             } catch (e) {

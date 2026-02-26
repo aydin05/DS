@@ -255,7 +255,9 @@ class SlideApiView(APIView):
         playlist_data = PlaylistSerializer(playlist, context={'request': request}).data
         if playlist_data['is_update'] == True:
             return Response(playlist.extra_fields)
-        queryset = Slide.objects.filter(company=self.request.user.company, playlist=playlist)
+        queryset = Slide.objects.filter(company=self.request.user.company, playlist=playlist).prefetch_related(
+            'slideitem_set__slideitemdisplaytype_set__display_type'
+        )
         serializer = SlideSerializer(queryset, many=True, context={'request': request})
         return Response(serializer.data)
 

@@ -69,7 +69,6 @@ const Properties = ({ size }) => {
     selectedItem,
     isLoadingUpload,
     uploadDatas,
-    fileStatus,
     isOpenDeleteModal,
     deleteFileId,
     deleteStatus,
@@ -111,7 +110,9 @@ const Properties = ({ size }) => {
 
   const deleteImageOrVideo = () => {
     removeFiles(deleteFileId);
-    dispatch(deleteFile(deleteFileId));
+    dispatch(deleteFile(deleteFileId))
+      .unwrap()
+      .then(() => message.success("File deleted successfully."));
   };
 
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -344,13 +345,6 @@ const Properties = ({ size }) => {
     dispatch(selectedSlideItem());
   }, []);
 
-  useEffect(() => {
-    if (fileStatus) {
-      message.success(`File deleted successfully.`);
-      dispatch(uploadFile());
-    }
-  }, [fileStatus]);
-
   return (
     <div>
       <div className="properties">
@@ -421,7 +415,7 @@ const Properties = ({ size }) => {
           {selectedItem.items.map((item, panel_index) => (
             <Panel
               // key={panel_index}
-              header={panel_index + 1 + " . " + item.type}
+              header={panel_index + 1 + " . " + (item.file ? item.file.split('/').pop() : item.type)}
               key={`${item?.position_id}`}
             >
               {item.type === "text" || item.type === "globaltext" ? (

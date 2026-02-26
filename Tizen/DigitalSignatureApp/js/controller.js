@@ -58,8 +58,6 @@ async function downloadAllFile(slides) {
         if (fileBar) { fileBar.style.width = "0%"; }
         if (fileText) fileText.textContent = "0%";
 
-        Logger.info("Downloading file", { index: fileIndex, total: totalFiles, filename: task.filename });
-
         var path = await download.start(task.url, task.filename, 0, function(received, total, percent) {
             // Update per-file progress bar
             if (fileBar) fileBar.style.width = percent + "%";
@@ -67,15 +65,12 @@ async function downloadAllFile(slides) {
         });
 
         // Update item location to local path
-        Logger.info("Updating item location to local path", { oldLocation: task.item.attr.location, newLocation: path });
         task.item.attr.location = path;
 
         // Update overall progress bar
         var overallPercent = (fileIndex / totalFiles) * 100;
         if (overallBar) overallBar.style.width = overallPercent + "%";
         if (overallText) overallText.textContent = Math.round(overallPercent) + "%";
-
-        Logger.info("File download complete", { index: fileIndex, total: totalFiles, path: path });
     }
 
     // Hide progress UI
@@ -150,9 +145,7 @@ var download = {
 
                 const listener = {
                     onprogress: function (id, receivedSize, totalSize) {
-                        const percent = (receivedSize / totalSize * 100).toFixed(1);
-                        Logger.info("Download progress", { file_name, id, receivedSize, totalSize, percent }); //
-                        console.log(`📥 ${file_name}: ${percent}%`);
+                        var percent = (receivedSize / totalSize * 100).toFixed(1);
                         if (onProgress) {
                             onProgress(receivedSize, totalSize, parseFloat(percent));
                         }
@@ -346,93 +339,75 @@ async function deleteAllFiles() {
 
 function saveJsonToFile(playlistObject, fileName) {
     if (fileName === undefined) fileName = "playlist.json";
-    Logger.info("Attempting to save JSON to file: " + fileName); //
     if (typeof tizen === 'undefined' || !tizen.filesystem) {
         // URL Launcher mode — use localStorage
         try {
             localStorage.setItem('ds_' + fileName, JSON.stringify(playlistObject));
-            Logger.info("Saved JSON to localStorage", { key: 'ds_' + fileName });
         } catch (e) {
             Logger.error("localStorage save error", { error: e.message });
         }
         return;
     }
+    var dataStr = JSON.stringify(playlistObject);
     tizen.filesystem.resolve("documents", function (dir) {
         if (!dir.isDirectory) {
-            Logger.error("Resolved 'documents' path is not a directory", { fileName }); //
+            Logger.error("Resolved 'documents' path is not a directory", { fileName });
             return;
         }
 
-        dir.listFiles(function (files) {
-            const existing = files.find(f => f.name === fileName);
-
-            function createAndWriteFile() {
-                try {
-                    const newFile = dir.createFile(fileName);
-                    Logger.info("Created new file for JSON", { fileName }); //
-
-                    newFile.openStream("w", function (fs) {
-                        const dataStr = JSON.stringify(playlistObject);
-                        Logger.info("Writing JSON data to file", { fileName, dataLength: dataStr.length }); //
-                        console.log("📦 Yazılacaq JSON:", dataStr);
-
-                        fs.write(dataStr);
-                        fs.close();
-
-                        Logger.info("File written successfully", { fileName }); //
-                        console.log("✅ Fayl yazıldı:", fileName);
-                    }, function (e) {
-                        Logger.error("openStream Error while writing JSON", { fileName, errorMessage: e.message }); //
-                        console.error("❌ openStream Error:", e.message);
-                    }, "UTF-8");
-                } catch (e) {
-                    Logger.error("createFile Error while saving JSON", { fileName, errorMessage: e.message }); //
-                    console.error("❌ createFile Error:", e.message);
-                }
+        function writeNewFile() {
+            try {
+                var newFile = dir.createFile(fileName);
+                newFile.openStream("w", function (fs) {
+                    fs.write(dataStr);
+                    fs.close();
+                }, function (e) {
+                    Logger.error("openStream Error while writing JSON", { fileName, errorMessage: e.message });
+                }, "UTF-8");
+            } catch (e) {
+                Logger.error("createFile Error while saving JSON", { fileName, errorMessage: e.message });
             }
+        }
 
-            // Əgər fayl mövcuddursa, əvvəl sil → sonra yaz
-            if (existing) {
-                Logger.info("Existing JSON file found, deleting before rewrite", { fileName, fullPath: existing.fullPath }); //
-                try {
+        // Try to create directly; if file exists, delete first then create
+        try {
+            var newFile = dir.createFile(fileName);
+            newFile.openStream("w", function (fs) {
+                fs.write(dataStr);
+                fs.close();
+            }, function (e) {
+                Logger.error("openStream Error", { fileName, errorMessage: e.message });
+            }, "UTF-8");
+        } catch (e) {
+            // File likely already exists — find and delete it, then write
+            dir.listFiles(function (files) {
+                var existing = files.find(function(f) { return f.name === fileName; });
+                if (existing) {
                     dir.deleteFile(existing.fullPath, function () {
-                        Logger.info("Deleted old JSON file", { fullPath: existing.fullPath }); //
-                        console.log("🧹 Köhnə fayl silindi:", existing.fullPath);
-                        createAndWriteFile(); // silindikdən sonra yaz
-                    }, function (delErr) {
-                        Logger.warn("Failed to delete existing JSON file, attempting to overwrite", { fileName, errorMessage: delErr.message }); //
-                        console.warn("⚠️ Silmək alınmadı:", delErr.message);
-                        createAndWriteFile(); // yenə də yazmağa çalış
+                        writeNewFile();
+                    }, function () {
+                        writeNewFile(); // try anyway
                     });
-                } catch (e) {
-                    Logger.error("Error during deleteFile operation", { fileName, errorMessage: e.message }); //
-                    console.warn("⚠️ deleteFile Error:", e.message);
-                    createAndWriteFile();
+                } else {
+                    writeNewFile();
                 }
-            } else {
-                createAndWriteFile(); // birbaşa yaz
-            }
-
-        }, function (listErr) {
-            Logger.error("listFiles Error while checking existing JSON files", { errorMessage: listErr.message }); //
-            console.error("❌ listFiles Error:", listErr.message);
-        });
+            }, function () {
+                Logger.error("listFiles Error while saving JSON", { fileName });
+            });
+        }
 
     }, function (resolveErr) {
-        Logger.error("documents resolve error while saving JSON", { errorMessage: resolveErr.message }); //
-        console.error("❌ documents resolve error:", resolveErr.message);
+        Logger.error("documents resolve error while saving JSON", { errorMessage: resolveErr.message });
     }, "rw");
 }
 
 function loadJsonFromFile(fileName) {
     if (fileName === undefined) fileName = "playlist.json";
-    Logger.info("Attempting to load JSON from file: " + fileName); //
     if (typeof tizen === 'undefined' || !tizen.filesystem) {
         // URL Launcher mode — use localStorage
         try {
             var data = localStorage.getItem('ds_' + fileName);
             if (data) {
-                Logger.info("Loaded JSON from localStorage", { key: 'ds_' + fileName });
                 return Promise.resolve(JSON.parse(data));
             }
         } catch (e) {
@@ -444,55 +419,46 @@ function loadJsonFromFile(fileName) {
         try {
             tizen.filesystem.resolve("documents", function(dir) {
                 dir.listFiles(function(files) {
-                    Logger.info("Listing files in 'documents' directory for JSON load", { filesCount: files.length }); //
                     const file = files.find(f => f.name === fileName);
 
                     if (!file) {
-                        Logger.warn("JSON file not found, returning empty object", { fileName }); //
-                        console.warn("⚠️ Playlist faylı tapılmadı, boş obyekt qaytarılır.");
-                        return resolve({});  // ✅ BOŞ OBYEKT QAYTAR
+                        return resolve({});
                     }
 
                     try {
                         if (file.fileSize > 0) {
-                            Logger.info("Opening stream to read JSON file", { fileName, fileSize: file.fileSize }); //
                             file.openStream("r", function (fs) {
                                 const contents = fs.read(file.fileSize);
                                 fs.close();
-                                const jsonData = JSON.parse(contents);
-                                Logger.info("Local playlist loaded successfully", { fileURI: file.toURI() }); //
-                                console.log("📂 Lokal playlist yükləndi:", file.toURI());
-                                resolve(jsonData);
+                                try {
+                                    resolve(JSON.parse(contents));
+                                } catch (parseErr) {
+                                    Logger.error("JSON parse error", { fileName, errorMessage: parseErr.message });
+                                    resolve({});
+                                }
                             }, function (e) {
-                                Logger.error("openStream Error while reading JSON", { fileName, errorMessage: e.message }); //
-                                console.log("openStream Error: " + e.message);
+                                Logger.error("openStream Error while reading JSON", { fileName, errorMessage: e.message });
                                 resolve({});
                             }, "UTF-8");
                         } else {
-                            Logger.error("JSON file is empty", { fileName }); //
-                            console.warn("⚠️ Fayl boşdur, boş obyekt qaytarılır");
                             resolve({});
                         }
                     } catch (e) {
-                        Logger.error("Error parsing JSON or reading file, returning empty object", { fileName, errorMessage: e.message }); //
-                        console.warn("⚠️ Playlist oxunarkən xəta oldu, boş obyekt qaytarılır:", e.message);
-                        resolve({});  // ✅ JSON xətası olsa da boş qaytar
+                        Logger.error("Error reading file", { fileName, errorMessage: e.message });
+                        resolve({});
                     }
 
                 }, function(error) {
-                    Logger.error("Error listing files while loading JSON, returning empty object", { errorMessage: error.message }); //
-                    console.warn("⚠️ Fayl siyahısı oxunmadı, boş obyekt qaytarılır:", error.message);
-                    resolve({});  // ✅ listFiles xətası olsa da boş qaytar
+                    Logger.error("listFiles Error", { errorMessage: error.message });
+                    resolve({});
                 });
             }, function(error) {
-                Logger.error("Error resolving 'documents' for JSON load, returning empty object", { errorMessage: error.message }); //
-                console.warn("⚠️ Qovluğa daxil olmaq mümkün olmadı, boş obyekt qaytarılır:", error.message);
-                resolve({});  // ✅ resolve xətası olsa da boş qaytar
+                Logger.error("resolve Error for JSON load", { errorMessage: error.message });
+                resolve({});
             }, "r");
         } catch (e) {
-            Logger.error("Unexpected error in loadJsonFromFile, returning empty object", { fileName, errorMessage: e.message }); //
-            console.warn("⚠️ Gözlənilməz xəta, boş obyekt qaytarılır:", e.message);
-            resolve({});  // ✅ try/catch xətası olsa da boş qaytar
+            Logger.error("Unexpected error in loadJsonFromFile", { fileName, errorMessage: e.message });
+            resolve({});
         }
     });
 }

@@ -14,8 +14,10 @@ async function getFetchNew(credentials, fromCredentialPage) {
     _isFetching = true;
     Logger.info("Attempting to fetch new playlist...", { server: credentials.server, username: credentials.username });
 
-    const oldResponse = await loadJsonFromFile(); // Default playlist.json
-    const oldData = await loadJsonFromFile("playlist2.json");
+    const [oldResponse, oldData] = await Promise.all([
+        loadJsonFromFile(),            // Default playlist.json
+        loadJsonFromFile("playlist2.json")
+    ]);
     
     // ✅ DETAILED DEBUGGING - Log what we loaded from files
     Logger.info("Loaded local files debug info", {
@@ -494,10 +496,10 @@ window.onload = async function init() {
 
     // Logger'ı başlat
     if (credentials && credentials.server) {
-        Logger.init(Logger.LOG_LEVELS.INFO, credentials.server, credentials.username, credentials.password);
-        Logger.info("Logger initialized with provided credentials", { server: credentials.server, username: credentials.username });
+        Logger.init(Logger.LOG_LEVELS.WARN, credentials.server, credentials.username, credentials.password);
+        Logger.warn("Logger initialized", { server: credentials.server, username: credentials.username });
     } else {
-        Logger.init(Logger.LOG_LEVELS.INFO);
+        Logger.init(Logger.LOG_LEVELS.WARN);
         Logger.warn("Logger initialized without server credentials");
     }
 
@@ -542,8 +544,8 @@ function submitCredentials() {
         Logger.info("Credentials saved to local file", { file: "credentials.json" });
 
         // Re-initialize Logger with new credentials so heartbeats/logs go to the correct server
-        Logger.init(Logger.LOG_LEVELS.INFO, server, username, password);
-        Logger.info("Logger re-initialized with new credentials", { server: server, username: username });
+        Logger.init(Logger.LOG_LEVELS.WARN, server, username, password);
+        Logger.warn("Logger re-initialized with new credentials", { server: server, username: username });
 
         var credentials = { server: server, username: username, password: password };
 

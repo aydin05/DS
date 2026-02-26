@@ -96,15 +96,11 @@ class Recipient(BaseModel):
 
 
 class NotificationSetting(BaseModel):
-    """Links branches/displays to recipient lists and templates for notifications."""
+    """Per-company notification settings. Recipients are taken from all RecipientLists for the company."""
     company = models.OneToOneField(
         'account.Company', on_delete=models.CASCADE, related_name='notification_setting'
     )
     is_enabled = models.BooleanField(_("Notifications Enabled"), default=True)
-    recipient_list = models.ForeignKey(
-        RecipientList, on_delete=models.SET_NULL, null=True, blank=True,
-        related_name='notification_settings'
-    )
     inactive_template = models.ForeignKey(
         EmailTemplate, on_delete=models.SET_NULL, null=True, blank=True,
         related_name='inactive_notification_settings',

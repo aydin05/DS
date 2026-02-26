@@ -8,7 +8,7 @@ const Logger = {
         ERROR: 3,
         NONE: 4 // Loglamayı tamamen kapatmak için
     },
-    currentLogLevel: 0, // Varsayılan olarak DEBUG seviyesinden başla (DEBUG ve üstünü logla)
+    currentLogLevel: 2, // Production: WARN and above only (0=DEBUG, 1=INFO, 2=WARN, 3=ERROR)
     logs: [], // Lokal olarak biriktirilecek loglar
     MAX_LOG_BUFFER_SIZE: 100, // Sunucuya göndermeden önce biriktirilecek maksimum log sayısı
     serverLogEndpoint: "/api/v1/core/device-logs/", // Sunucunuzdaki log kabul endpoint'i

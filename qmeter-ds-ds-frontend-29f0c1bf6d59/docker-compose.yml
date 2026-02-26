@@ -1,17 +1,15 @@
-version: "3.3"
-
 services:
   web:
     build:
       context: .
+      dockerfile: Dockerfile.serve
     container_name: ds-front
     restart: "always"
     env_file: .env
     environment:
-      - VIRTUAL_HOST=116.203.187.99
+      - VIRTUAL_HOST=aydin.technolink.az,116.203.187.99
       - VIRTUAL_PORT=3333
       - PORT=3333
-      - LANG=C.UTF-8
       - LANG=en_US.UTF-8
       - LANGUAGE=en_US:en
       - LC_ALL=en_US.UTF-8
@@ -20,5 +18,5 @@ services:
 
 networks:
   default:
-    external:
-      name: nginx-proxy
+    name: nginx-proxy
+    external: true

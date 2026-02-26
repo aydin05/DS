@@ -91,7 +91,7 @@ class RecipientCreateSerializer(serializers.ModelSerializer):
 class NotificationSettingSerializer(serializers.ModelSerializer):
     class Meta:
         model = NotificationSetting
-        fields = ('id', 'is_enabled', 'recipient_list', 'inactive_template', 'active_template', 'check_interval_seconds')
+        fields = ('id', 'is_enabled', 'inactive_template', 'active_template', 'check_interval_seconds')
 
     def create(self, validated_data):
         validated_data['company'] = self.context['request'].user.company

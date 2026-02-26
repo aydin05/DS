@@ -5,7 +5,6 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   fetchNotificationSettings,
   saveNotificationSettings,
-  fetchRecipientLists,
   fetchEmailTemplates,
 } from "../../store/features/notificationSlice";
 import {
@@ -21,14 +20,12 @@ export const NotificationSettings = () => {
   const {
     notificationSetting,
     notificationSettingLoading,
-    recipientLists,
     templates,
   } = useSelector((state) => state.notificationSlice);
   const { data: branches, isLoading: branchesLoading } = useSelector((state) => state.branchSlice);
 
   useEffect(() => {
     dispatch(fetchNotificationSettings());
-    dispatch(fetchRecipientLists({ page: 1, search: "" }));
     dispatch(fetchEmailTemplates({ page: 1, search: "" }));
     dispatch(fetchBranchData({ page: 1, search: "" }));
   }, [dispatch]);
@@ -87,25 +84,6 @@ export const NotificationSettings = () => {
               extra="Turn on/off automatic email alerts for device status changes"
             >
               <Switch />
-            </Form.Item>
-
-            <Divider orientation="left">Who receives alerts?</Divider>
-
-            <Form.Item
-              label="Recipient List"
-              name="recipient_list"
-              rules={[
-                { required: true, message: "Please select a recipient list" },
-              ]}
-              extra="Manage lists in Settings → Recipient Lists"
-            >
-              <Select placeholder="Select who should receive alert emails">
-                {recipientLists.map((list) => (
-                  <Select.Option key={list.id} value={list.id}>
-                    {list.name} ({list.recipient_count} recipients)
-                  </Select.Option>
-                ))}
-              </Select>
             </Form.Item>
 
             <Divider orientation="left">Email templates</Divider>
