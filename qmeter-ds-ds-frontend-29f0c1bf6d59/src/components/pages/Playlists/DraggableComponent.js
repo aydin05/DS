@@ -70,11 +70,25 @@ function SortableSlide({ item, index, selectedPosition, onSelect, onRemove }) {
   );
 }
 
+const EDITOR_MAX_WIDTH = 1000;
+const EDITOR_MAX_HEIGHT = 600;
+
 function DraggableComponent({ size }) {
   const dispatch = useDispatch();
   const { selectedItem, slides, selectedPosition, fetchSlideStatus } =
     useSelector((state) => state.playListInnerSlice);
   const [zoom, setZoom] = useState(100);
+
+  // Calculate base scale so the full display type fits within the editor area
+  const canvasWidth = size.width || 1920;
+  const canvasHeight = size.height || 1080;
+  const baseScale = Math.min(
+    EDITOR_MAX_WIDTH / canvasWidth,
+    EDITOR_MAX_HEIGHT / canvasHeight
+  );
+  const effectiveScale = baseScale * (zoom / 100);
+  const scaledW = canvasWidth * effectiveScale;
+  const scaledH = canvasHeight * effectiveScale;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -132,13 +146,16 @@ function DraggableComponent({ size }) {
     <div className="draggable-component">
       <Row className="mt-4">
         <Col span={18} className="pr-3">
-          <div className="box">
+          <div className="box" style={{ width: scaledW + 2, height: scaledH + 2, minWidth: 0, maxWidth: 'none', overflow: 'hidden' }}>
             <div
               className="box-container"
               style={{
-                ...size,
-                transform: `scale(${zoom / 100})`,
+                width: canvasWidth,
+                height: canvasHeight,
+                transform: `scale(${effectiveScale})`,
+                transformOrigin: 'left top',
                 backgroundColor: selectedItem?.bg_color,
+                position: 'relative',
               }}
               id={"box-container"}
             >
@@ -178,7 +195,7 @@ function DraggableComponent({ size }) {
                       }}
                       className="rnd"
                       size={{
-                        // width: item.width,
+                        width: item.width,
                         height: item.height,
                       }}
                       position={{
@@ -188,7 +205,7 @@ function DraggableComponent({ size }) {
                     >
                       {item.type === "video" ? (
                         <video
-                          style={{ width: "100%", height: "100%" }}
+                          style={{ width: "100%", height: "100%", objectFit: "contain", backgroundColor: "#000" }}
                           controls
                           loop={item.attr.isLoop}
                           muted={item.attr.ismute}
@@ -201,8 +218,8 @@ function DraggableComponent({ size }) {
                         <div
                           style={{
                             backgroundImage: `url(${item.file})`,
-                            width: `${item.width}px`,
-                            height: `${item.height}px`,
+                            width: "100%",
+                            height: "100%",
                             backgroundSize: "contain",
                             backgroundRepeat: "no-repeat",
                             backgroundPosition: "center",
@@ -278,7 +295,12 @@ function DraggableComponent({ size }) {
         </Col>
         <Col span={6}>
           <Properties size={size} />
-          <Slider min={1} max={100} value={zoom} onChange={(e) => setZoom(e)} />
+          <div style={{ padding: '0 8px' }}>
+            <div style={{ fontSize: 12, color: '#888', marginBottom: 4 }}>
+              Canvas: {canvasWidth} x {canvasHeight} &middot; Zoom: {zoom}%
+            </div>
+            <Slider min={20} max={150} value={zoom} onChange={(e) => setZoom(e)} />
+          </div>
         </Col>
       </Row>
       <div className="slides__container">

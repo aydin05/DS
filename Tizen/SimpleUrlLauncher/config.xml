@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://technolink.az/SimpleUrlLauncher" version="1.0.0">
+    <tizen:application id="rBmFMGzx5u.SimpleUrlLauncher" package="rBmFMGzx5u" required_version="2.3"/>
+    <content src="index.html"/>
+    <feature name="http://tizen.org/feature/screen.size.all"/>
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
+    <icon src="icon.png"/>
+    <name>SimpleUrlLauncher</name>
+    <tizen:profile name="tv-samsung"/>
+    <tizen:metadata key="http://samsung.com/tv/metadata/use.network" value="true"/>
+    <access origin="*" subdomains="true"/>
+</widget>

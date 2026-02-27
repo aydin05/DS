@@ -15,7 +15,7 @@ SSH_OPTS="-o ServerAliveInterval=30 -o ServerAliveCountMax=10"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 FRONTEND_DIR="${SCRIPT_DIR}/qmeter-ds-ds-frontend-29f0c1bf6d59"
 BACKEND_DIR="${SCRIPT_DIR}/ds_backend-main"
-TIZEN_APP_DIR="${SCRIPT_DIR}/Tizen/DigitalSignatureApp"
+TIZEN_APP_DIR="${SCRIPT_DIR}/Tizen/SimpleUrlLauncher"
 
 # Remote paths
 REMOTE_FRONTEND="/root/ds_frontend"
@@ -260,14 +260,16 @@ if [ "$DEPLOY_TIZEN" = true ]; then
     # Generate sssp_config.xml
     SSSP_DIR="${SCRIPT_DIR}/Tizen/sssp"
     mkdir -p "${SSSP_DIR}"
+    # Use timestamp-based version so TV detects updates and re-downloads the .wgt
+    SSSP_VER="$(date +%Y%m%d.%H%M%S)"
     cat > "${SSSP_DIR}/sssp_config.xml" << SSSP_EOF
 <widget>
-    <ver>1.0</ver>
+    <ver>${SSSP_VER}</ver>
     <size>${WGT_SIZE}</size>
     <widgetname>${WGT_NAME}</widgetname>
 </widget>
 SSSP_EOF
-    log "Generated sssp_config.xml (widgetname=${WGT_NAME}, size=${WGT_SIZE})"
+    log "Generated sssp_config.xml (widgetname=${WGT_NAME}, size=${WGT_SIZE}, ver=${SSSP_VER})"
 
     # Create placeholder index.html if it doesn't exist
     if [ ! -f "${SSSP_DIR}/index.html" ]; then

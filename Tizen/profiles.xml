@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<profiles active="ds-tv" version="3.1">
-<profile name="ds-tv">
-<profileitem ca="" distributor="0" key="C:\Users\user\SamsungCertificate\ds-tv\author.p12" password="C:\Users\user\SamsungCertificate\ds-tv\author.pwd" rootca=""/>
-<profileitem ca="" distributor="1" key="C:\Users\user\SamsungCertificate\ds-tv\distributor.p12" password="C:\Users\user\SamsungCertificate\ds-tv\distributor.pwd" rootca=""/>
-<profileitem ca="" distributor="2" key="" password="" rootca=""/>
-</profile>
-</profiles>

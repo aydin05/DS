@@ -1,10 +1,11 @@
 from django.urls import path
 from playlist.api.routers import router
-from playlist.api.viewsets import SlideApiView, PlaylistDetailApiView, TabloTicketApiView
+from playlist.api.viewsets import SlideApiView, PlaylistDetailApiView, TabloTicketApiView, MergeStatusApiView
 
 
 urlpatterns = [
     path('<int:id>/slide/', SlideApiView.as_view(), name='slide'),
+    path('<int:pk>/merge-status/', MergeStatusApiView.as_view(), name='merge-status'),
     path('', PlaylistDetailApiView.as_view(), name='playlist-detail'),
     path('ticket/', TabloTicketApiView.as_view(), name='tablo-ticket-detail'),
 ]

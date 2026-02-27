@@ -8,7 +8,7 @@ from display.models import DisplayType
 from rest_framework.exceptions import ValidationError,NotFound
 
 from dsqmeter.settings import default_tz
-from playlist.models import Playlist, Schedule, SchedulePlaylist, Slide, SlideItem, SlideItemDisplayType
+from playlist.models import Playlist, Schedule, SchedulePlaylist, Slide, SlideItem, SlideItemDisplayType, MergedVideo
 from django.utils.translation import gettext_lazy as _
 
 
@@ -306,10 +306,11 @@ class SlideItemTypeSerializer(ModelSerializer):
 class PlaylistDetailSerializer(ModelSerializer):
     slides = serializers.SerializerMethodField()
     general = SerializerMethodField()
+    merged_video_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Playlist
-        fields = ('general','slides')
+        fields = ('general','slides','merged_video_url')
 
     def get_slides(self, obj):
         if obj.slides:
@@ -317,10 +318,11 @@ class PlaylistDetailSerializer(ModelSerializer):
         slide = obj.slide_set.all().order_by('position').prefetch_related(
             'slideitem_set__slideitemdisplaytype_set__display_type'
         )
-        display_type = self.context['request'].GET.get('display_type')
+        request = self.context.get('request')
+        display_type = request.GET.get('display_type') if request else None
         if not display_type:
-            display_type = obj.default_display_type
-        return SlideSerializer(slide,context={'display_type':display_type} ,many=True).data
+            display_type = obj.default_display_type.id
+        return SlideSerializer(slide, context={'display_type': display_type}, many=True).data
 
     def get_general(self, obj):
         return {
@@ -331,6 +333,30 @@ class PlaylistDetailSerializer(ModelSerializer):
             'width': obj.default_display_type.width,
             'height': obj.default_display_type.height,
         }
+
+    def get_merged_video_url(self, obj):
+        from django.conf import settings
+        import os
+        display_type = obj.default_display_type
+        # Get the most recent ready merged video (may be stale)
+        merged = MergedVideo.objects.filter(
+            playlist=obj,
+            display_type=display_type,
+            status='ready',
+        ).order_by('-updated_at').first()
+        if merged and merged.video_file:
+            full_path = os.path.join(settings.MEDIA_ROOT, str(merged.video_file))
+            if not os.path.isfile(full_path):
+                return None
+            # Always serve the existing merged video — even if stale —
+            # so the display keeps showing video while a new merge is processing.
+            # The OpenLink page will pick up the new URL on the next poll after merge completes.
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(
+                    settings.MEDIA_URL + str(merged.video_file)
+                )
+        return None
 
 
 

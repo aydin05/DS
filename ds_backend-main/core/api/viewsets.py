@@ -311,7 +311,8 @@ class LogReceiverAPIView(APIView):
                 return Response({"error": "Display not found."}, status=status.HTTP_404_NOT_FOUND)
 
         # Update heartbeat on every log submission
-        _update_heartbeat(display, 'tizen')
+        source = payload.get('source', 'tizen')
+        _update_heartbeat(display, source)
 
         user_logger = get_user_logger(username)  # Kullanıcıya özel logger'ı al/oluştur
         client_ip = get_client_ip(request)

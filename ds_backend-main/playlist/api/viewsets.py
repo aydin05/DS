@@ -1,4 +1,5 @@
 import requests
+from django.conf import settings
 from display.models import Display
 from playlist.models import *
 from rest_framework import permissions
@@ -51,7 +52,11 @@ class PlaylistViewSet(MultiSerializerViewSet):
             return Response(serializer.errors, status=400)
         playlist.extra_fields = []
         playlist.save()
-        return Response({"message": "Playlist published"})
+
+        # Auto-trigger merged video generation for all display types linked to this playlist
+        _trigger_merge_after_publish(playlist, request)
+
+        return Response({"message": "Playlist published", "playlist_id": playlist.id})
 
     @action(detail=True, methods=['post'])
     def discard(self, request, pk=None):
@@ -344,6 +349,137 @@ class PlaylistDetailApiView(APIView):
 
 
 
+
+
+class MergeStatusApiView(APIView):
+    """GET: Poll merge status for a playlist. Returns status + URL when ready."""
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get(self, request, pk=None):
+        from playlist.models import MergedVideo
+        playlist = Playlist.objects.filter(pk=pk, company=request.user.company).first()
+        if not playlist:
+            return Response({"error": "Playlist not found"}, status=404)
+
+        display_type = playlist.default_display_type
+        merged = MergedVideo.objects.filter(
+            playlist=playlist,
+            display_type=display_type,
+        ).order_by('-updated_at').first()
+
+        if not merged:
+            return Response({"status": "none", "merged_video_url": None})
+
+        if merged.status == 'processing':
+            return Response({"status": "processing", "merged_video_url": None})
+
+        if merged.status == 'failed':
+            return Response({"status": "failed", "merged_video_url": None, "error": merged.error_message})
+
+        if merged.status == 'ready' and merged.video_file:
+            import os
+            full_path = os.path.join(settings.MEDIA_ROOT, str(merged.video_file))
+            if os.path.isfile(full_path):
+                video_url = request.build_absolute_uri(
+                    settings.MEDIA_URL + str(merged.video_file)
+                )
+                return Response({"status": "ready", "merged_video_url": video_url})
+
+        return Response({"status": "none", "merged_video_url": None})
+
+
+def _trigger_merge_after_publish(playlist, request):
+    """Trigger merged video generation in background after playlist publish."""
+    import threading, logging
+    from playlist.models import MergedVideo
+    from playlist.services.video_merger import _playlist_content_hash
+
+    logger = logging.getLogger(__name__)
+    display_type = playlist.default_display_type
+    if not display_type:
+        return
+
+    width = display_type.width or 1920
+    height = display_type.height or 1080
+
+    # Serialize slides for merge
+    playlist_copy = Playlist.objects.get(pk=playlist.pk)
+    playlist_copy.slides = None
+    from playlist.api.serializers import PlaylistDetailSerializer
+    serializer = PlaylistDetailSerializer(playlist_copy, context={'request': request})
+    slides_data = serializer.data.get('slides') or []
+    if not slides_data:
+        return
+
+    content_hash = _playlist_content_hash(playlist.id, slides_data, width, height)
+
+    # Skip if already ready or processing with same hash
+    existing = MergedVideo.objects.filter(
+        playlist=playlist, display_type=display_type, content_hash=content_hash
+    ).first()
+    if existing and existing.status in ('ready', 'processing'):
+        return
+
+    # Collect stale record IDs — DON'T delete them yet.
+    # The old video keeps serving while the new merge runs.
+    stale_ids = list(MergedVideo.objects.filter(
+        playlist=playlist, display_type=display_type
+    ).exclude(content_hash=content_hash).values_list('id', flat=True))
+
+    merged, _ = MergedVideo.objects.update_or_create(
+        playlist=playlist,
+        display_type=display_type,
+        content_hash=content_hash,
+        defaults={'status': 'processing', 'video_file': '', 'error_message': None},
+    )
+
+    def _run_merge(merged_id, slides, w, h, stale_ids_to_clean):
+        import os as _os
+        from django.db import close_old_connections
+        from playlist.models import MergedVideo as _MV
+        from playlist.services.video_merger import merge_playlist_slides
+        try:
+            close_old_connections()
+            m = _MV.objects.get(pk=merged_id)
+            relative_path = merge_playlist_slides(m.playlist, slides, w, h, force=True)
+            close_old_connections()
+            m = _MV.objects.get(pk=merged_id)
+            if relative_path:
+                m.video_file = relative_path
+                m.status = 'ready'
+            else:
+                m.status = 'failed'
+                m.error_message = 'FFmpeg merge returned no output'
+            m.save(update_fields=['video_file', 'status', 'error_message', 'updated_at'])
+            logger.info("Publish-merge MergedVideo %s => %s", merged_id, m.status)
+
+            # Now that new video is ready, clean up old stale records
+            if m.status == 'ready' and stale_ids_to_clean:
+                for old in _MV.objects.filter(id__in=stale_ids_to_clean):
+                    if old.video_file:
+                        fpath = _os.path.join(settings.MEDIA_ROOT, str(old.video_file))
+                        try:
+                            _os.remove(fpath)
+                        except OSError:
+                            pass
+                _MV.objects.filter(id__in=stale_ids_to_clean).delete()
+                logger.info("Cleaned up %d stale merged videos", len(stale_ids_to_clean))
+        except Exception as e:
+            logger.exception("Publish-merge failed for MergedVideo %s: %s", merged_id, e)
+            try:
+                close_old_connections()
+                m = _MV.objects.get(pk=merged_id)
+                m.status = 'failed'
+                m.error_message = str(e)[:1000]
+                m.save(update_fields=['status', 'error_message', 'updated_at'])
+            except Exception:
+                pass
+        finally:
+            close_old_connections()
+
+    t = threading.Thread(target=_run_merge, args=(merged.id, list(slides_data), width, height, stale_ids), daemon=True)
+    t.start()
+    logger.info("Publish triggered merge for playlist %s (hash=%s)", playlist.id, content_hash)
 
 
 class TabloTicketApiView(APIView):

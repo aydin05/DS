@@ -174,14 +174,16 @@ const Properties = ({ size }) => {
         selectedItem.items.length > 0
           ? selectedItem.items[selectedItem.items.length - 1].position_id
           : 0;
+      const canvasW = size.width || 1920;
+      const canvasH = size.height || 1080;
       let items = selectedFiles.map((item, i) => {
         index += 1;
         position_id += 1;
         if (item.type === "image") {
           return {
             ...item,
-            width: size.width < 200 ? size.width : 200,
-            height: size.width < 200 ? size.width : 200,
+            width: canvasW,
+            height: canvasH,
             top: 0,
             left: 0,
             index: index,
@@ -191,8 +193,8 @@ const Properties = ({ size }) => {
         } else {
           return {
             ...item,
-            width: size.width < 200 ? size.width : 200,
-            height: size.width < 200 ? size.width : 200,
+            width: canvasW,
+            height: canvasH,
             top: 0,
             left: 0,
             index: index,

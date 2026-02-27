@@ -69,6 +69,25 @@ class SlideItem(BaseModel):
         return self.type.name
 
 
+class MergedVideo(BaseModel):
+    playlist = models.ForeignKey(Playlist, on_delete=models.CASCADE, related_name='merged_videos')
+    display_type = models.ForeignKey('display.DisplayType', on_delete=models.CASCADE)
+    content_hash = models.CharField(_("Content Hash"), max_length=64, db_index=True)
+    video_file = models.CharField(_("Video File Path"), max_length=500)
+    status = models.CharField(
+        _("Status"), max_length=20, default='pending',
+        choices=[('pending', 'Pending'), ('processing', 'Processing'),
+                 ('ready', 'Ready'), ('failed', 'Failed')]
+    )
+    error_message = models.TextField(_("Error"), null=True, blank=True)
+
+    class Meta:
+        unique_together = ('playlist', 'display_type', 'content_hash')
+
+    def __str__(self):
+        return f"MergedVideo playlist={self.playlist_id} hash={self.content_hash}"
+
+
 class SlideItemDisplayType(BaseModel):
     slide_item = models.ForeignKey(SlideItem, on_delete=models.CASCADE, null=True,blank=True)
     display_type = models.ForeignKey(DisplayType, on_delete=models.CASCADE, null=True,blank=True)

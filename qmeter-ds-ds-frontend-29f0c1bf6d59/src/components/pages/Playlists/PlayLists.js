@@ -1,8 +1,10 @@
 import { SubHeader } from "../../SubComponents/SubHeader";
-import React, { useCallback, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { AuthModal } from "../../SubComponents/AuthModal";
 import ConfirmDeleteModal from "../../SubComponents/ConfirmDeleteModal";
-import { Button, Dropdown, Form, Input, message, Select } from "antd";
+import { Button, Dropdown, Form, Input, message, Modal, Progress, Select } from "antd";
+import { CheckCircleOutlined, CloseCircleOutlined, LoadingOutlined } from "@ant-design/icons";
+import axiosClient from "../../../config";
 import tableAction from "../../../assets/images/table-action.svg";
 import { useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
@@ -46,6 +48,11 @@ export const PlayLists = () => {
     postError,
   } = useSelector((state) => state.playListSlice);
   const displayTypeSlice = useSelector((state) => state.displayTypeSlice);
+  const [mergeModalVisible, setMergeModalVisible] = useState(false);
+  const [mergeStatus, setMergeStatus] = useState("idle"); // idle | processing | ready | failed
+  const [mergeError, setMergeError] = useState(null);
+  const mergePollingRef = useRef(null);
+
   const toggleEdit = useCallback(() => dispatch(toggleModal()), [dispatch]);
   const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id)), [dispatch]);
   const [duplicateForm] = Form.useForm();
@@ -98,13 +105,50 @@ export const PlayLists = () => {
     }
   }, [postError]);
 
+  const stopMergePolling = useCallback(() => {
+    if (mergePollingRef.current) {
+      clearInterval(mergePollingRef.current);
+      mergePollingRef.current = null;
+    }
+  }, []);
+
+  const startMergePolling = useCallback((playlistId) => {
+    stopMergePolling();
+    setMergeStatus("processing");
+    setMergeError(null);
+    setMergeModalVisible(true);
+
+    mergePollingRef.current = setInterval(async () => {
+      try {
+        const res = await axiosClient.get(`playlist/${playlistId}/merge-status/`);
+        const { status, error } = res.data;
+        if (status === "ready") {
+          setMergeStatus("ready");
+          stopMergePolling();
+          setTimeout(() => setMergeModalVisible(false), 2000);
+        } else if (status === "failed") {
+          setMergeStatus("failed");
+          setMergeError(error || "Unknown error");
+          stopMergePolling();
+        }
+      } catch (err) {
+        console.error("Merge status poll error:", err);
+      }
+    }, 3000);
+  }, [stopMergePolling]);
+
+  useEffect(() => {
+    return () => stopMergePolling();
+  }, [stopMergePolling]);
+
   const publish = useCallback((id) =>
     dispatch(publishPlayList(id))
       .unwrap()
       .then(() => {
         dispatch(fetchPlayListData({ page: 1 }));
         message.success("Published!");
-      }), [dispatch]);
+        startMergePolling(id);
+      }), [dispatch, startMergePolling]);
   const discard = useCallback((id) =>
     dispatch(discardPlayList(id))
       .unwrap()
@@ -313,6 +357,45 @@ export const PlayLists = () => {
         onConfirm={deletePlaylist}
         loading={deleteDataLoading}
       />
+
+      {/* Merge Video Progress Modal */}
+      <Modal
+        title="Generating Video"
+        open={mergeModalVisible}
+        footer={mergeStatus === "failed" ? [
+          <Button key="close" onClick={() => setMergeModalVisible(false)}>Close</Button>
+        ] : null}
+        closable={mergeStatus !== "processing"}
+        onCancel={() => { stopMergePolling(); setMergeModalVisible(false); }}
+        maskClosable={false}
+        centered
+      >
+        <div style={{ textAlign: "center", padding: "24px 0" }}>
+          {mergeStatus === "processing" && (
+            <>
+              <LoadingOutlined style={{ fontSize: 48, color: "#1890ff" }} />
+              <p style={{ marginTop: 16, fontSize: 16 }}>Merging slides into video...</p>
+              <p style={{ color: "#888" }}>This may take up to a minute depending on the number of slides.</p>
+              <Progress percent={99.9} status="active" showInfo={false} style={{ marginTop: 16 }} />
+            </>
+          )}
+          {mergeStatus === "ready" && (
+            <>
+              <CheckCircleOutlined style={{ fontSize: 48, color: "#52c41a" }} />
+              <p style={{ marginTop: 16, fontSize: 16, fontWeight: 600 }}>Video ready!</p>
+              <p style={{ color: "#888" }}>The merged video is now live on all connected displays.</p>
+            </>
+          )}
+          {mergeStatus === "failed" && (
+            <>
+              <CloseCircleOutlined style={{ fontSize: 48, color: "#ff4d4f" }} />
+              <p style={{ marginTop: 16, fontSize: 16, fontWeight: 600 }}>Video generation failed</p>
+              <p style={{ color: "#888" }}>{mergeError}</p>
+              <p style={{ color: "#888", marginTop: 8 }}>Displays will use slide-by-slide mode as fallback.</p>
+            </>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 };
