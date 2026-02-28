@@ -493,8 +493,9 @@ const playListInnerSlice = createSlice({
       );
     },
     toggleDeleteModal: (state, action) => {
-      state.isOpenDeleteModal = !state.isOpenDeleteModal;
-      state.deleteFileId = action.payload;
+      const { open, id } = action.payload ?? {};
+      state.isOpenDeleteModal = open ?? !state.isOpenDeleteModal;
+      state.deleteFileId = id ?? null;
       state.deleteStatus = false;
     },
     reorderSlides: (state, action) => {

@@ -106,7 +106,7 @@ const Properties = ({ size }) => {
     setIsOpenIframeModal(!isOpenIframeModal);
     setWidgetType(widgetType);
   };
-  const toggleDelete = (id = null) => dispatch(toggleDeleteModal(id));
+  const toggleDelete = (id = null) => dispatch(toggleDeleteModal(id !== null ? { open: true, id } : { open: false, id: null }));
 
   const deleteImageOrVideo = () => {
     removeFiles(deleteFileId);
