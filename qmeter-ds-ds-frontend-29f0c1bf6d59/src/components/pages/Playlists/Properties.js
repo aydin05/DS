@@ -116,6 +116,8 @@ const Properties = ({ size }) => {
   };
 
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadPhase, setUploadPhase] = useState("");
+  const processingTimerRef = React.useRef(null);
 
   const fileUpload = (options) => {
     /*file upload function*/
@@ -126,28 +128,54 @@ const Properties = ({ size }) => {
     formData.append("type", type); //append file type , video or image
     setIsLoading(true);
     setUploadProgress(0);
-    const hideMsg = type === "video"
-      ? message.loading("Preparing video for display specs (H.264 / 8000 kbps / 30 fps). Please wait, do not close the page...", 0)
-      : null;
+    setUploadPhase(type === "video" ? "Uploading..." : "Uploading...");
+
     axiosClient
       .post("core/file/", formData, {
         onUploadProgress: (progressEvent) => {
-          const percent = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
-          setUploadProgress(percent);
+          const transferred = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+          if (transferred < 100) {
+            // Phase 1: network transfer maps to 0-80%
+            setUploadProgress(Math.round(transferred * 0.8));
+            setUploadPhase("Uploading...");
+          } else {
+            // Transfer done — lock at 80% and start simulated processing crawl
+            setUploadProgress(80);
+            if (type === "video") {
+              setUploadPhase("Processing video (H.264 / 8000 kbps / 30 fps)...");
+              let simulated = 80;
+              processingTimerRef.current = setInterval(() => {
+                simulated += 1;
+                if (simulated >= 99) {
+                  clearInterval(processingTimerRef.current);
+                  simulated = 99;
+                }
+                setUploadProgress(simulated);
+              }, 400);
+            } else {
+              setUploadPhase("Processing...");
+            }
+          }
         },
       })
       .then(() => {
-        hideMsg && hideMsg();
-        message.success(`${file.name} file uploaded successfully.`);
-        dispatch(uploadFile());
-        setIsLoading(false);
-        setUploadProgress(0);
-        type === "video" && setTab("2");
+        clearInterval(processingTimerRef.current);
+        setUploadProgress(100);
+        setUploadPhase("Done!");
+        setTimeout(() => {
+          message.success(`${file.name} file uploaded successfully.`);
+          dispatch(uploadFile());
+          setIsLoading(false);
+          setUploadProgress(0);
+          setUploadPhase("");
+          type === "video" && setTab("2");
+        }, 400);
       })
       .catch((error) => {
-        hideMsg && hideMsg();
+        clearInterval(processingTimerRef.current);
         setIsLoading(false);
         setUploadProgress(0);
+        setUploadPhase("");
         const data = error.response && error.response.data;
         if (data && data.non_field_errors) {
           data.non_field_errors.forEach(function(err) {
@@ -741,11 +769,17 @@ const Properties = ({ size }) => {
           </p>
         </Dragger>
         {isLoading && (
-          <Progress
-            percent={uploadProgress}
-            status={uploadProgress < 100 ? "active" : "success"}
-            style={{ marginTop: 8 }}
-          />
+          <div style={{ marginTop: 8 }}>
+            <Progress
+              percent={uploadProgress}
+              status={uploadProgress < 100 ? "active" : "success"}
+            />
+            {uploadPhase && (
+              <div style={{ fontSize: 12, color: "#888", marginTop: 2 }}>
+                {uploadPhase}
+              </div>
+            )}
+          </div>
         )}
         <div className="mt-3 d-flex justify-content-end">
           <Button onClick={toggle} className="mx-2">
