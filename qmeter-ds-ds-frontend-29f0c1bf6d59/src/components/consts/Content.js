@@ -14,10 +14,10 @@ const { Content } = Layout;
 
 export const ContentApp = ({ toggle }) => {
   const dispatch = useDispatch();
-  const userCookie = Cookies.get("user");
+  const userStr = localStorage.getItem("user");
   let user;
   try {
-    user = userCookie ? JSON.parse(userCookie) : null;
+    user = userStr ? JSON.parse(userStr) : null;
   } catch {
     user = null;
   }

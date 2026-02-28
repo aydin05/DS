@@ -7,6 +7,7 @@ from core.models import WidgetType
 from display.models import DisplayType
 from rest_framework.exceptions import ValidationError,NotFound
 
+import pytz
 from dsqmeter.settings import default_tz
 from playlist.models import Playlist, Schedule, SchedulePlaylist, Slide, SlideItem, SlideItemDisplayType, MergedVideo
 from django.utils.translation import gettext_lazy as _
@@ -29,7 +30,7 @@ class PlaylistCreateSerializer(ModelSerializer):
             old_playlist = old_playlist.exclude(id=self.instance.id)
         if old_playlist.exists():
             raise serializers.ValidationError("Playlist with this name already exists")
-        return super().validate(value)
+        return value
     
     def get_is_update(self, obj):
         is_update = False
@@ -68,24 +69,23 @@ class PlaylistSerializer(ModelSerializer):
         instance.company = self.context['request'].user.company
         instance.name = validated_data.get('name', instance.name)
         instance.description = validated_data.get('description', instance.description)
-        display_type_id = self.context['request'].data.get('default_display_type')
+        display_type_id = validated_data.pop('default_display_type', None)
         if display_type_id is not None:
-            display_type = DisplayType.objects.filter(id=display_type_id).first()
-            instance.default_display_type = display_type
+            if isinstance(display_type_id, DisplayType):
+                instance.default_display_type = display_type_id
+            else:
+                display_type = DisplayType.objects.filter(id=display_type_id).first()
+                if display_type:
+                    instance.default_display_type = display_type
         instance.save()
         return instance
 
     def get_is_update(self, obj):
-        is_update = False
+        if self.instance is None:
+            return False
         if isinstance(self.instance, Iterable):
-            if obj.extra_fields:
-                is_update = True
-                return is_update
-            return  is_update
-        else:
-            if self.instance.extra_fields:
-                is_update = True
-            return is_update
+            return bool(obj.extra_fields)
+        return bool(self.instance.extra_fields)
 
 class ScheduleSerializer(ModelSerializer):
     class Meta:
@@ -103,7 +103,7 @@ class ScheduleSerializer(ModelSerializer):
             old_schedule = old_schedule.exclude(id=self.instance.id)
         if old_schedule.exists():
             raise serializers.ValidationError("Schedule with this name already exists")
-        return super().validate(value)
+        return value
 
 
 class SchedulePlaylistSerializer(ModelSerializer):
@@ -113,8 +113,12 @@ class SchedulePlaylistSerializer(ModelSerializer):
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        data['start_time'] = instance.start_time.astimezone(default_tz).strftime("%Y-%m-%d %H:%M:%S")
-        data['end_time'] = instance.end_time.astimezone(default_tz).strftime("%Y-%m-%d %H:%M:%S")
+        company_tz_name = getattr(instance.schedule.company, 'timezone', None)
+        tz = pytz.timezone(company_tz_name) if company_tz_name else default_tz
+        if instance.start_time:
+            data['start_time'] = instance.start_time.astimezone(tz).strftime("%Y-%m-%d %H:%M:%S")
+        if instance.end_time:
+            data['end_time'] = instance.end_time.astimezone(tz).strftime("%Y-%m-%d %H:%M:%S")
         return data
 
     def create(self, validated_data):
@@ -172,7 +176,7 @@ class SlideItemSerializer(ModelSerializer):
                     'width':display_type_item['width'],
                     'height':display_type_item['height']
                 }
-                diplay_type_data = SlideItemDisplayTypeSerializer().create(slide_item_display_type_data)
+                SlideItemDisplayTypeSerializer().create(slide_item_display_type_data)
         else:
             slide_item_display_type_data = {
             'slide_item':slide_item,
@@ -182,7 +186,7 @@ class SlideItemSerializer(ModelSerializer):
             'width':validated_data.get('width'),
             'height':validated_data.get('height')
             }
-            diplay_type_data = SlideItemDisplayTypeSerializer().create(slide_item_display_type_data)
+            SlideItemDisplayTypeSerializer().create(slide_item_display_type_data)
 
         return slide_item
 

@@ -1,11 +1,7 @@
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser,UserManager,PermissionsMixin,Group
+from django.contrib.auth.models import AbstractBaseUser,PermissionsMixin,Group
 from django.utils.translation import gettext_lazy as _
-from django.utils import timezone
-from django.urls import reverse_lazy
-from slugify import slugify
 from django.conf import settings
-import datetime
 from .managers import AccountManager
 User_Model = settings.AUTH_USER_MODEL
 from django_countries.fields import CountryField
@@ -62,7 +58,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         verbose_name_plural = 'Accounts'
 
     def __str__(self):
-        return self.fullname
+        return self.fullname or self.email
 
     def save(self, *args, **kwargs):
         super(User, self).save(*args, **kwargs)

@@ -15,10 +15,10 @@ class PageNumberPagination(PageNumberPaginate):
             return None
 
         paginator = self.django_paginator_class(queryset, page_size)
-        # page_number = self.get_page_number(request, paginator)
+        page_number = self.get_page_number(request, paginator)
 
         try:
-            self.page = paginator.page(1)
+            self.page = paginator.page(page_number)
         except InvalidPage as exc:
             msg = self.invalid_page_message.format(
                 page_number=1, message=str(exc)

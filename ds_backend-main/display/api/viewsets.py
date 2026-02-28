@@ -9,6 +9,7 @@ from rest_framework import filters
 from playlist.api.serializers import PlaylistDetailSerializer
 from rest_framework.response import Response
 from playlist.models import Playlist
+from dsqmeter.utils.display_helpers import get_playlist_id_for_display
 
 class DisplayTypeViewSet(MultiSerializerViewSet):
     queryset = DisplayType.objects.all()
@@ -74,23 +75,16 @@ class DisplayDetailApiView(ListAPIView):
     def get(self, request, *args, **kwargs):
         username = request.GET.get('username')
         display = Display.objects.filter(username=username).last()
-        if display:
-            if display.playlist:
-                playlist_id = display.playlist.id 
-            elif display.display_group and display.display_group.playlist:
-                playlist_id = display.display_group.playlist.id
-            elif  display.display_group and display.display_group.schedule:
-                playlist_id = display.display_group.schedule.default_playlist.id
-            elif display.schedule:
-                playlist_id = display.schedule.default_playlist.id
-            else: 
-                return Response({"error": "Playlist not found please assign playlist display or others"}, status=400)
-            playlist = Playlist.objects.filter(id=playlist_id).first()
-            if not playlist:
-                return Response({"error": "Playlist not found"}, status=404)
-            # Always serve published Slide objects, NOT draft extra_fields.
-            # Draft changes in extra_fields should only appear after user clicks Publish.
-            playlist.slides = None
-            serializer = PlaylistDetailSerializer(playlist, context={'request': request})
-            return Response(serializer.data)
-        return Response({"error": "Invalid username"}, status=400)
+        if not display:
+            return Response({"error": "Invalid username"}, status=400)
+        playlist_id = get_playlist_id_for_display(display)
+        if not playlist_id:
+            return Response({"error": "Playlist not found please assign playlist display or others"}, status=400)
+        playlist = Playlist.objects.filter(id=playlist_id).first()
+        if not playlist:
+            return Response({"error": "Playlist not found"}, status=404)
+        # Always serve published Slide objects, NOT draft extra_fields.
+        # Draft changes in extra_fields should only appear after user clicks Publish.
+        playlist.slides = None
+        serializer = PlaylistDetailSerializer(playlist, context={'request': request})
+        return Response(serializer.data)

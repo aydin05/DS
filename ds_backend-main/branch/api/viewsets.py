@@ -1,5 +1,5 @@
 from branch.api.search import CustomSearchFilter
-from branch.api.serializer import BranchSerializer
+from branch.api.serializers import BranchSerializer
 from branch.models import *
 from rest_framework import permissions, pagination
 from branch.api.permissions import BranchPermission

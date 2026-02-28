@@ -87,3 +87,12 @@ class NotificationSettingViewSet(ModelViewSet):
 
     def get_queryset(self):
         return NotificationSetting.objects.filter(company=self.request.user.company)
+
+    def create(self, request, *args, **kwargs):
+        existing = NotificationSetting.objects.filter(company=request.user.company).first()
+        if existing:
+            serializer = self.get_serializer(existing, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        return super().create(request, *args, **kwargs)

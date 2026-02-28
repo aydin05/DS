@@ -11,7 +11,7 @@ from django.template import Template, Context
 from display.models import Display
 from notification.models import EmailConfig, NotificationSetting, RecipientList
 from notification.email_sender import send_email
-from core.api.serializer import DEFAULT_DEVICE_HEALTHY_THRESHOLD_SECONDS, get_threshold_for_company
+from core.api.serializers import DEFAULT_DEVICE_HEALTHY_THRESHOLD_SECONDS, get_threshold_for_company
 
 logger = logging.getLogger(__name__)
 

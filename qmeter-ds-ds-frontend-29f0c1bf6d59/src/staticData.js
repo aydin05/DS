@@ -33,7 +33,7 @@ export const fontSizeOptions = [
   10,
   12,
   14,
-  "default",
+  16,
   18,
   20,
   22,
@@ -94,6 +94,10 @@ export const timeZones = [
   },
   {
     value: "Pacific/Samoa",
+    title: "(GMT -11:00) Midway Island, Samoa",
+  },
+  {
+    value: "Pacific/Honolulu",
     title: "(GMT -10:00) Hawaii",
   },
   {

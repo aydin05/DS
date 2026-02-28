@@ -38,8 +38,23 @@ const fetchDeviceStatusById = createAsyncThunk(
 const downloadDeviceLogsById = createAsyncThunk(
   "deviceStatusDownloadById",
   async (id) => {
-    const response = await axiosClient.get(`core/logs/${id}/download/`);
-    return response.data;
+    const response = await axiosClient.get(`core/logs/${id}/download/`, {
+      responseType: "blob",
+    });
+    const blob = new Blob([response.data]);
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    const disposition = response.headers["content-disposition"];
+    const filename = disposition
+      ? disposition.split("filename=")[1]?.replace(/"/g, "")
+      : `device_log_${id}.log`;
+    link.setAttribute("download", filename);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    return id;
   },
 );
 

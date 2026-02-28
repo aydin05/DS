@@ -1,7 +1,8 @@
+from collections import OrderedDict
 from django.db import models
 from django.contrib.auth.models import Group
 from rest_framework.viewsets import ModelViewSet
-from rest_framework import permissions, status, generics,views,filters
+from rest_framework import permissions, status, generics, filters
 from account.api.serializers import CompanyUserSerializer
 from account.api.permissions import CompanyUserPermission
 from core.api.permissions import CompanyFilePermission
@@ -9,7 +10,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.response import Response
 from django.contrib.auth.models import Permission
 from rest_framework.generics import ListAPIView
-from core.api.serializer import CompanyFileSerializer, GroupSerializer, WidgetTypeSerializer, DeviceLogSerializer, DeviceLogDetailSerializer, get_threshold_for_company, DEFAULT_DEVICE_HEALTHY_THRESHOLD_SECONDS
+from core.api.serializers import CompanyFileSerializer, GroupSerializer, WidgetTypeSerializer, DeviceLogSerializer, DeviceLogDetailSerializer, get_threshold_for_company, DEFAULT_DEVICE_HEALTHY_THRESHOLD_SECONDS
 from core.models import CompanyFile, WidgetType, DeviceLog, CompanySettings
 from django.utils import timezone
 from datetime import timedelta
@@ -18,11 +19,9 @@ from rest_framework.viewsets import ReadOnlyModelViewSet
 import json
 import logging
 import os
-import re  # Kullanıcı adını dosya adı için temizlemek amacıyla
+import re
 from django.conf import settings
 from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import status
 from logging.handlers import RotatingFileHandler
 from display.models import Display
 
@@ -157,11 +156,19 @@ def sanitize_filename(username):
     return s_username if s_username else "invalid_user"
 
 
-# Her kullanıcı için logger ve handler'ları bir kere oluşturup saklamak için (basit bir cache)
-# Çok sayıda kullanıcı varsa bu sözlüğün yönetimi önemli hale gelebilir.
-# Üretim ortamında bu, Django cache framework veya başka bir mekanizma ile yönetilebilir.
-# Şimdilik, uygulama çalıştığı sürece bellekte tutulacak.
-_user_loggers = {}
+# Bounded cache for per-user loggers to prevent unbounded memory growth.
+# When the cache exceeds MAX_USER_LOGGERS, the least-recently-used logger's
+# handlers are closed and the entry is evicted.
+MAX_USER_LOGGERS = 500
+_user_loggers = OrderedDict()
+
+def _evict_oldest_logger():
+    """Remove and close the oldest cached user logger."""
+    if _user_loggers:
+        _, old_logger = _user_loggers.popitem(last=False)
+        for handler in old_logger.handlers[:]:
+            handler.close()
+            old_logger.removeHandler(handler)
 
 def get_user_logger(username):
     """Belirtilen kullanıcı için bir logger örneği alır veya oluşturur."""
@@ -169,27 +176,30 @@ def get_user_logger(username):
     logger_name = f"user_logs.{sanitized_username}"
 
     if logger_name in _user_loggers:
+        _user_loggers.move_to_end(logger_name)
         return _user_loggers[logger_name]
 
+    # Evict oldest if at capacity
+    while len(_user_loggers) >= MAX_USER_LOGGERS:
+        _evict_oldest_logger()
+
     user_logger = logging.getLogger(logger_name)
-    user_logger.setLevel(logging.INFO)  # Kullanıcı logları için varsayılan seviye
+    user_logger.setLevel(logging.INFO)
 
     # Eğer bu logger için daha önce handler eklenmemişse ekle
     if not user_logger.handlers:
         log_file_path = os.path.join(LOGS_BASE_DIR, f"user_{sanitized_username}.log")
 
-        # Kullanıcıya özel RotatingFileHandler oluştur
         handler = RotatingFileHandler(
             log_file_path,
-            maxBytes=1024 * 1024 * 2,  # Her kullanıcı için maksimum dosya boyutu: 2 MB
-            backupCount=2  # Her kullanıcı için 2 yedek dosya
+            maxBytes=1024 * 1024 * 2,
+            backupCount=2
         )
-        # settings.py'de tanımladığımız formatı kullan
         formatter = logging.Formatter(settings.LOGGING['formatters']['tizen_user_log_format']['format'], style='{')
         handler.setFormatter(formatter)
 
         user_logger.addHandler(handler)
-        user_logger.propagate = False  # Logların root logger'a gitmesini engelle (isteğe bağlı)
+        user_logger.propagate = False
 
     _user_loggers[logger_name] = user_logger
     return user_logger

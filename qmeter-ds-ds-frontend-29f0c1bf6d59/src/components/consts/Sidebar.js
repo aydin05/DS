@@ -12,7 +12,7 @@ export const Sidebar = ({ collapsed }) => {
   const params = useParams();
   let user = {};
   try {
-    user = JSON.parse(Cookies.get("user")) || {};
+    user = JSON.parse(localStorage.getItem("user")) || {};
   } catch (e) {
     user = {};
   }

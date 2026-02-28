@@ -23,7 +23,7 @@ class DisplayGroup(BaseModel):
     company = models.ForeignKey('account.Company', on_delete=models.CASCADE, null=True,blank=True)
 
     def __str__(self) -> str:
-        return super().__str__()
+        return self.name
 
 
 class Display(BaseModel):

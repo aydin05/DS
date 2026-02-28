@@ -1,7 +1,8 @@
 import requests
 from django.conf import settings
-from display.models import Display
-from playlist.models import *
+from display.models import Display, DisplayType
+from core.models import WidgetType
+from playlist.models import Playlist, Schedule, SchedulePlaylist, Slide, SlideItem, SlideItemDisplayType
 from rest_framework import permissions
 from playlist.api.serializers import PlaylistSerializer,ScheduleSerializer,SchedulePlaylistSerializer, SlideItemDisplayTypeSerializer,SlideSerializer,SlideItemSerializer,SlideCreateSerializer,PlaylistDetailSerializer,PlaylistCreateSerializer
 from playlist.api.permissions import PlaylistPermission,SchedulePermission, SchedulePlaylistPermission,SlidePermission
@@ -13,6 +14,7 @@ from django.db import transaction
 from rest_framework import filters
 from rest_framework.decorators import action
 import copy
+from dsqmeter.utils.display_helpers import get_playlist_id_for_display
 
 
 
@@ -179,8 +181,9 @@ class SlideApiView(APIView):
         if not isinstance(self.request.data, list):
             return Response({"error": "Slides must be a list"}, status=400)
 
-        display_type_id = request.GET.get('display_type')
-        display_type_obj = DisplayType.objects.filter(id=display_type_id).last()
+        display_type_id_raw = request.GET.get('display_type')
+        display_type_id = int(display_type_id_raw) if display_type_id_raw else None
+        display_type_obj = DisplayType.objects.filter(id=display_type_id).last() if display_type_id else None
 
        
         if not playlist.slide_set.exists():
@@ -208,6 +211,9 @@ class SlideApiView(APIView):
                 return Response(serializer.errors, status=400)
 
         else:
+            if not display_type_id or not display_type_obj:
+                return Response({"error": "display_type query parameter is required"}, status=400)
+
             request_data = self.request.data
             for data in request_data:
                 for item in data['items']:
@@ -261,10 +267,11 @@ class SlideApiView(APIView):
         playlist_data = PlaylistSerializer(playlist, context={'request': request}).data
         if playlist_data['is_update'] == True:
             return Response(playlist.extra_fields)
+        display_type = request.GET.get('display_type')
         queryset = Slide.objects.filter(company=self.request.user.company, playlist=playlist).prefetch_related(
             'slideitem_set__slideitemdisplaytype_set__display_type'
         )
-        serializer = SlideSerializer(queryset, many=True, context={'request': request})
+        serializer = SlideSerializer(queryset, many=True, context={'request': request, 'display_type': display_type})
         return Response(serializer.data)
 
 
@@ -278,14 +285,16 @@ class PlaylistDetailApiView(APIView):
         if request.user and request.user.is_authenticated:
             id = request.GET.get('id')
             display_type = request.GET.get('display_type')
+            if not display_type:
+                return Response({"error": "display_type is required"}, status=400)
             playlist = Playlist.objects.filter(pk=id, company=request.user.company).first()
             if not playlist:
                 return Response({"error": "Playlist not found"}, status=404)
             list_of_data = copy.deepcopy(playlist.extra_fields)
             for data in list_of_data:
-                for item in data['items']:
+                for item in data.get('items', []):
                     is_exist = False
-                    for display_type_item in item['display_types']:
+                    for display_type_item in item.get('display_types', []):
                         if int(display_type) == int(display_type_item['id']):
                             is_exist = True
                             item['top'] = display_type_item['top']
@@ -306,47 +315,27 @@ class PlaylistDetailApiView(APIView):
     def post(self, request, *args, **kwargs):
         username = request.data.get('username')
         password = request.data.get('password')
-        if username and password:
-            display = Display.objects.filter(username=username, password=password)
-            if display:
-                display = display.first()
-                if display.playlist:
-                    playlist_id = display.playlist.id 
-                elif display.display_group and display.display_group.playlist:
-                    playlist_id = display.display_group.playlist.id
-                elif  display.display_group and  display.display_group.schedule:
-                    playlist_id = display.display_group.schedule.default_playlist.id
-                elif display.schedule:
-                    playlist_id = display.schedule.default_playlist.id
-                else: 
-                    return Response({"error": "Playlist not found please assign playlist display or others"}, status=400)
-                playlist = Playlist.objects.filter(id = playlist_id).last()
-                playlist.slides = None
-                serializer = PlaylistDetailSerializer(playlist, context={'request': request})
-                data = serializer.data
-                return Response(data)
-            return Response({"error": "Invalid username or password"}, status=400)
-        elif username and not password:
+        if not username:
+            return Response({"error": "You must provide a username"}, status=400)
+
+        if password:
+            display = Display.objects.filter(username=username, password=password).first()
+            if not display:
+                return Response({"error": "Invalid username or password"}, status=400)
+        else:
             display = Display.objects.filter(username=username).last()
             if not display:
                 return Response({"error": "Display not found"}, status=400)
-            if display.playlist:
-                playlist_id = display.playlist.id 
-            elif display.display_group and display.display_group.playlist:
-                playlist_id = display.display_group.playlist.id
-            elif display.display_group and display.display_group.schedule:
-                playlist_id = display.display_group.schedule.default_playlist.id
-            elif display.schedule:
-                playlist_id = display.schedule.default_playlist.id
-            else: 
-                return Response({"error": "Playlist not found please assign playlist display or others"}, status=400)
-            playlist = Playlist.objects.filter(id=playlist_id).last()
-            playlist.slides = None
-            serializer = PlaylistDetailSerializer(playlist, context={'request': request})
-            data = serializer.data
-            return Response(data)
-        else:
-            return Response({"error": "You must provide a username and password"}, status=400)
+
+        playlist_id = get_playlist_id_for_display(display)
+        if not playlist_id:
+            return Response({"error": "Playlist not found please assign playlist display or others"}, status=400)
+        playlist = Playlist.objects.filter(id=playlist_id).first()
+        if not playlist:
+            return Response({"error": "Playlist not found"}, status=404)
+        playlist.slides = None
+        serializer = PlaylistDetailSerializer(playlist, context={'request': request})
+        return Response(serializer.data)
 
 
 

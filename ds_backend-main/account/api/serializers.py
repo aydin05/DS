@@ -189,18 +189,14 @@ class CompanyUserSerializer(RegistrationSerializer):
     def create(self, validated_data):
         # validated_data.pop('password_confirmation')
         validated_data.update({'is_master': False})
-        branch = ''
-        role_group = ''
-        if "role" in validated_data:
-            role_group = validated_data.pop('role')
-        if 'branch' in validated_data:
-            branch = validated_data.pop('branch')
+        role_group = validated_data.pop('role', None)
+        branch = validated_data.pop('branch', None)
         validated_data.update({'company': self.context['request'].user.company})
         user = User.objects.create_user(**validated_data)
-        if not role_group == '':
+        if role_group:
             for role in role_group:
                 user.role.add(role)
-        if not branch == '':
+        if branch:
             for branch_item in branch:
                 user.branch.add(branch_item)
         return user

@@ -48,7 +48,7 @@ def _check_and_notify():
     Returns the sleep interval in seconds for the next check."""
     from notification.models import EmailConfig, NotificationSetting, RecipientList
     from display.models import Display
-    from core.api.serializer import get_threshold_for_company
+    from core.api.serializers import get_threshold_for_company
     from notification.email_sender import send_email
     from django.db.models import Q
 

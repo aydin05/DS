@@ -22,7 +22,7 @@ const Login = () => {
       .post("accounts/login/", values)
       .then((res) => {
         Cookies.set("q-token", res.data.token, { expires: 30 });
-        Cookies.set("user", JSON.stringify(res.data), { expires: 30 });
+        localStorage.setItem("user", JSON.stringify(res.data));
         dispatch(loginSuccess());
         navigate("/");
       })
