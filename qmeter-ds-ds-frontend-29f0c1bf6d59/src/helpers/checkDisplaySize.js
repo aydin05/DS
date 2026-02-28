@@ -1,20 +1,18 @@
-export const checkDisplaySize = (item, display_element) => {
-  item.items.forEach((item) => {
+export const checkDisplaySize = (slide, display_element) => {
+  const checkedItems = slide.items.map((slideItem) => {
     if (
-      item.width + item.left > display_element.width ||
-      item.height + item.top > display_element.height
+      slideItem.width + slideItem.left > display_element.width ||
+      slideItem.height + slideItem.top > display_element.height
     ) {
-      item.width = 200;
-      item.height = 200;
-      item.left = 0;
-      item.top = 0;
+      return {
+        ...slideItem,
+        width: 200,
+        height: 200,
+        left: 0,
+        top: 0,
+      };
     }
-    // else {
-    //     item.width = 200;
-    //     item.height = 200;
-    //     item.left = 0;
-    //     item.top = 0;
-    // }
+    return slideItem;
   });
-  return item;
+  return { ...slide, items: checkedItems };
 };

@@ -126,6 +126,9 @@ const userSlice = createSlice({
       state.formValue = action.payload;
       state.isOpenModal = true;
     });
+    builder.addCase(getUserDataById.rejected, (state) => {
+      state.isLoading = false;
+    });
 
     /*update user data builder add case*/
     builder.addCase(updateUserData.pending, (state) => {

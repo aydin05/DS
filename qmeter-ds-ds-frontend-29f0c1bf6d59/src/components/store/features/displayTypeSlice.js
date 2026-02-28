@@ -127,8 +127,11 @@ const displayTypeSlice = createSlice({
       state.formValue = action.payload;
       state.isOpenModal = true;
     });
+    builder.addCase(getDisplayTypeDataById.rejected, (state) => {
+      state.isLoading = false;
+    });
 
-    /*update displayType data builder add case*/
+    /*update display type data builder add case*/
     builder.addCase(updateDisplayTypeData.pending, (state, action) => {
       state.postDataLoading = true;
     });
@@ -137,8 +140,11 @@ const displayTypeSlice = createSlice({
       state.requestStatus = "update";
       state.isOpenModal = false;
     });
+    builder.addCase(updateDisplayTypeData.rejected, (state) => {
+      state.postDataLoading = false;
+    });
 
-    /*delete branch data builder add case*/
+    /*delete display type data builder add case*/
     builder.addCase(deleteDisplayTypeData.pending, (state, action) => {
       state.deleteDataLoading = true;
     });
@@ -146,6 +152,9 @@ const displayTypeSlice = createSlice({
       state.deleteDataLoading = false;
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
+    });
+    builder.addCase(deleteDisplayTypeData.rejected, (state) => {
+      state.deleteDataLoading = false;
     });
   },
 });

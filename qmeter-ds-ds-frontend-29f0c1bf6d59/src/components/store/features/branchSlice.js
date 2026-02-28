@@ -172,6 +172,15 @@ const branchSlice = createSlice({
       state.requestStatus = "update";
       state.isOpenModal = false;
     });
+    builder.addCase(updateBranchData.rejected, (state, action) => {
+      state.postDataLoading = false;
+      state.postError = action.payload
+        ? Object.entries(action.payload).map(([key, value]) => ({
+            name: key,
+            errors: value,
+          }))
+        : [{ name: "error", errors: ["Network error"] }];
+    });
 
     /*delete branch data builder add case*/
     builder.addCase(deleteBranchData.pending, (state, action) => {
@@ -181,6 +190,9 @@ const branchSlice = createSlice({
       state.deleteDataLoading = false;
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
+    });
+    builder.addCase(deleteBranchData.rejected, (state) => {
+      state.deleteDataLoading = false;
     });
 
     /*patch branch notification*/

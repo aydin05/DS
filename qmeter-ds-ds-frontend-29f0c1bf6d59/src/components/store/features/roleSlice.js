@@ -145,6 +145,9 @@ const roleSlice = createSlice({
       state.formValue = action.payload;
       state.isOpenModal = true;
     });
+    builder.addCase(getRoleDataById.rejected, (state) => {
+      state.isLoading = false;
+    });
 
     /*update role data builder add case*/
     builder.addCase(updateRoleData.pending, (state, action) => {
@@ -155,8 +158,11 @@ const roleSlice = createSlice({
       state.requestStatus = "update";
       state.isOpenModal = false;
     });
+    builder.addCase(updateRoleData.rejected, (state) => {
+      state.postDataLoading = false;
+    });
 
-    /*delete branch data builder add case*/
+    /*delete role data builder add case*/
     builder.addCase(deleteRoleData.pending, (state, action) => {
       state.deleteDataLoading = true;
     });
@@ -164,6 +170,9 @@ const roleSlice = createSlice({
       state.deleteDataLoading = false;
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
+    });
+    builder.addCase(deleteRoleData.rejected, (state) => {
+      state.deleteDataLoading = false;
     });
   },
 });

@@ -70,11 +70,12 @@ def transcode_video_if_needed(file_obj):
     Returns the original file_obj if already compliant, or a new
     SimpleUploadedFile with the transcoded content.
     """
-    pid = os.getpid()
-    tmp_in = f'/tmp/_vid_in_{pid}'
-    tmp_out = f'/tmp/_vid_out_{pid}.mp4'
+    import tempfile
+    fd_in, tmp_in = tempfile.mkstemp(prefix='_vid_in_', dir='/tmp')
+    fd_out, tmp_out = tempfile.mkstemp(prefix='_vid_out_', suffix='.mp4', dir='/tmp')
+    os.close(fd_out)
     try:
-        with open(tmp_in, 'wb') as f:
+        with os.fdopen(fd_in, 'wb') as f:
             for chunk in file_obj.chunks():
                 f.write(chunk)
         file_obj.seek(0)

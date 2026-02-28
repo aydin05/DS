@@ -132,11 +132,15 @@ const deviceStatusSlice = createSlice({
       state.isLoading = false;
     });
 
-    builder.addCase(downloadDeviceLogsById.fulfilled, (state, action) => {
-      state.deviceId = action.payload;
-    });
     builder.addCase(downloadDeviceLogsById.pending, (state) => {
       state.isLoading = true;
+    });
+    builder.addCase(downloadDeviceLogsById.fulfilled, (state, action) => {
+      state.isLoading = false;
+      state.deviceId = action.payload;
+    });
+    builder.addCase(downloadDeviceLogsById.rejected, (state) => {
+      state.isLoading = false;
     });
 
     builder.addCase(fetchDeviceStatusFilter.pending, (state) => {

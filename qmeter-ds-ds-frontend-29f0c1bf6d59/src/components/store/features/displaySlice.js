@@ -120,8 +120,11 @@ const displaySlice = createSlice({
       state.formValue = action.payload;
       state.isOpenModal = true;
     });
+    builder.addCase(getDisplayDataById.rejected, (state) => {
+      state.isLoading = false;
+    });
 
-    /*update displayType data builder add case*/
+    /*update display data builder add case*/
     builder.addCase(updateDisplayData.pending, (state, action) => {
       state.postDataLoading = true;
     });
@@ -130,8 +133,17 @@ const displaySlice = createSlice({
       state.requestStatus = "update";
       state.isOpenModal = false;
     });
+    builder.addCase(updateDisplayData.rejected, (state, action) => {
+      state.postDataLoading = false;
+      state.postError = action.payload
+        ? Object.entries(action.payload).map(([key, value]) => ({
+            name: key,
+            errors: value,
+          }))
+        : [{ name: "error", errors: ["Network error"] }];
+    });
 
-    /*delete branch data builder add case*/
+    /*delete display data builder add case*/
     builder.addCase(deleteDisplayData.pending, (state, action) => {
       state.deleteDataLoading = true;
     });
@@ -139,6 +151,9 @@ const displaySlice = createSlice({
       state.deleteDataLoading = false;
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
+    });
+    builder.addCase(deleteDisplayData.rejected, (state) => {
+      state.deleteDataLoading = false;
     });
   },
 });

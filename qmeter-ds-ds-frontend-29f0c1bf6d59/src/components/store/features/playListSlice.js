@@ -126,7 +126,7 @@ const playListSlice = createSlice({
       state.isLoading = false;
     });
 
-    /*post role data builder add case*/
+    /*post playlist data builder add case*/
     builder.addCase(postPlayListData.pending, (state, action) => {
       state.postDataLoading = true;
     });
@@ -147,7 +147,7 @@ const playListSlice = createSlice({
       state.postError = error;
     });
 
-    /*get role data builder add case*/
+    /*get playlist data builder add case*/
     builder.addCase(getPlayListDataById.pending, (state, action) => {
       state.isLoading = true;
     });
@@ -159,8 +159,11 @@ const playListSlice = createSlice({
         state.isOpenModal = true;
       }
     });
+    builder.addCase(getPlayListDataById.rejected, (state) => {
+      state.isLoading = false;
+    });
 
-    /*update role data builder add case*/
+    /*update playlist data builder add case*/
     builder.addCase(updatePlayListData.pending, (state, action) => {
       state.postDataLoading = true;
     });
@@ -169,8 +172,17 @@ const playListSlice = createSlice({
       state.requestStatus = "update";
       state.isOpenModal = false;
     });
+    builder.addCase(updatePlayListData.rejected, (state, action) => {
+      state.postDataLoading = false;
+      state.postError = action.payload
+        ? Object.entries(action.payload).map(([key, value]) => ({
+            name: key,
+            errors: value,
+          }))
+        : [{ name: "error", errors: ["Network error"] }];
+    });
 
-    /*delete branch data builder add case*/
+    /*delete playlist data builder add case*/
     builder.addCase(deletePlayListData.pending, (state, action) => {
       state.deleteDataLoading = true;
     });
@@ -178,6 +190,9 @@ const playListSlice = createSlice({
       state.deleteDataLoading = false;
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
+    });
+    builder.addCase(deletePlayListData.rejected, (state) => {
+      state.deleteDataLoading = false;
     });
 
     /*Publish builder*/

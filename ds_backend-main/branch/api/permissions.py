@@ -3,7 +3,7 @@ from django.utils.translation import gettext_lazy as _
 
 
 class BranchPermission(CustomAccessPermission):
-    message = _('No action is allowed on the user.')
+    message = _('You do not have permission to manage branches.')
     permission = 'branch'
     permission_model = 'branch'
 

@@ -89,7 +89,7 @@ const displayGroupSlice = createSlice({
     builder.addCase(fetchDisplayGroupData.rejected, (state, action) => {
       state.isLoading = false;
     });
-    /*post displayType data builder add case*/
+    /*post display group data builder add case*/
     builder.addCase(postDisplayGroupData.pending, (state, action) => {
       state.postDataLoading = true;
     });
@@ -98,7 +98,10 @@ const displayGroupSlice = createSlice({
       state.requestStatus = "post";
       state.isOpenModal = false;
     });
-    /*get displayType data builder add case*/
+    builder.addCase(postDisplayGroupData.rejected, (state, action) => {
+      state.postDataLoading = false;
+    });
+    /*get display group data builder add case*/
     builder.addCase(getDisplayGroupDataById.pending, (state, action) => {
       state.isLoading = true;
     });
@@ -107,7 +110,10 @@ const displayGroupSlice = createSlice({
       state.formValue = action.payload;
       state.isOpenModal = true;
     });
-    /*update displayType data builder add case*/
+    builder.addCase(getDisplayGroupDataById.rejected, (state) => {
+      state.isLoading = false;
+    });
+    /*update display group data builder add case*/
     builder.addCase(updateDisplayGroupData.pending, (state, action) => {
       state.postDataLoading = true;
     });
@@ -116,7 +122,10 @@ const displayGroupSlice = createSlice({
       state.requestStatus = "update";
       state.isOpenModal = false;
     });
-    /*delete branch data builder add case*/
+    builder.addCase(updateDisplayGroupData.rejected, (state) => {
+      state.postDataLoading = false;
+    });
+    /*delete display group data builder add case*/
     builder.addCase(deleteDisplayGroupData.pending, (state, action) => {
       state.deleteDataLoading = true;
     });
@@ -124,6 +133,9 @@ const displayGroupSlice = createSlice({
       state.deleteDataLoading = false;
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
+    });
+    builder.addCase(deleteDisplayGroupData.rejected, (state) => {
+      state.deleteDataLoading = false;
     });
   },
 });

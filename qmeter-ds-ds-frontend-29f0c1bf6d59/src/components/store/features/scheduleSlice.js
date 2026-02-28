@@ -199,6 +199,9 @@ const scheduleSlice = createSlice({
       state.requestStatus = "update";
       state.isOpenModal = false;
     });
+    builder.addCase(updateScheduleData.rejected, (state) => {
+      state.postDataLoading = false;
+    });
 
     /*delete schedule data builder add case*/
     builder.addCase(deleteScheduleData.pending, (state, action) => {
@@ -208,6 +211,9 @@ const scheduleSlice = createSlice({
       state.deleteDataLoading = false;
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
+    });
+    builder.addCase(deleteScheduleData.rejected, (state) => {
+      state.deleteDataLoading = false;
     });
     /*fetch schedule date builder add case*/
 

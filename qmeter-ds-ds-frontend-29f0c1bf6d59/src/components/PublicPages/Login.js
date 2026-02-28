@@ -69,8 +69,8 @@ const Login = () => {
           <Input.Password placeholder="Enter password" />
         </Form.Item>
         {Object.values(error).length > 0 &&
-          Object.values(error).map((item) => (
-            <Text type={"danger"}>{item}</Text>
+          Object.values(error).map((item, index) => (
+            <Text key={index} type={"danger"}>{item}</Text>
           ))}
         <Button
           loading={isLoading}
