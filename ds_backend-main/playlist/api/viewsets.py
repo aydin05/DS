@@ -37,6 +37,7 @@ class PlaylistViewSet(MultiSerializerViewSet):
         return queryset.filter(company = self.request.user.company)
 
     @action(detail=True, methods=['post'])
+    @transaction.atomic
     def publish(self, request, pk=None):
         playlist = self.get_object()
         if playlist.extra_fields == []:
@@ -343,9 +344,9 @@ class PlaylistDetailApiView(APIView):
             playlist.slides = None
             serializer = PlaylistDetailSerializer(playlist, context={'request': request})
             data = serializer.data
+            return Response(data)
         else:
             return Response({"error": "You must provide a username and password"}, status=400)
-        return Response(data)
 
 
 
@@ -391,8 +392,10 @@ class MergeStatusApiView(APIView):
 def _trigger_merge_after_publish(playlist, request):
     """Trigger merged video generation in background after playlist publish."""
     import threading, logging
+    from datetime import timedelta
+    from django.utils import timezone as _tz
     from playlist.models import MergedVideo
-    from playlist.services.video_merger import _playlist_content_hash
+    from playlist.services.video_merger import _playlist_content_hash, MAX_RETRY_COUNT
 
     logger = logging.getLogger(__name__)
     display_type = playlist.default_display_type
@@ -401,6 +404,16 @@ def _trigger_merge_after_publish(playlist, request):
 
     width = display_type.width or 1920
     height = display_type.height or 1080
+
+    # Fix 2: Recover stuck-processing records (older than 10 minutes)
+    stuck_threshold = _tz.now() - timedelta(minutes=10)
+    stuck_count = MergedVideo.objects.filter(
+        playlist=playlist, display_type=display_type,
+        status='processing', updated_at__lt=stuck_threshold
+    ).update(status='failed', error_message='Stuck in processing — recovered automatically')
+    if stuck_count:
+        logger.warning("Recovered %d stuck-processing MergedVideo records for playlist %s",
+                        stuck_count, playlist.id)
 
     # Serialize slides for merge
     playlist_copy = Playlist.objects.get(pk=playlist.pk)
@@ -435,47 +448,81 @@ def _trigger_merge_after_publish(playlist, request):
 
     def _run_merge(merged_id, slides, w, h, stale_ids_to_clean):
         import os as _os
+        import time as _time
         from django.db import close_old_connections
         from playlist.models import MergedVideo as _MV
         from playlist.services.video_merger import merge_playlist_slides
-        try:
-            close_old_connections()
-            m = _MV.objects.get(pk=merged_id)
-            relative_path = merge_playlist_slides(m.playlist, slides, w, h, force=True)
-            close_old_connections()
-            m = _MV.objects.get(pk=merged_id)
-            if relative_path:
-                m.video_file = relative_path
-                m.status = 'ready'
-            else:
-                m.status = 'failed'
-                m.error_message = 'FFmpeg merge returned no output'
-            m.save(update_fields=['video_file', 'status', 'error_message', 'updated_at'])
-            logger.info("Publish-merge MergedVideo %s => %s", merged_id, m.status)
 
-            # Now that new video is ready, clean up old stale records
-            if m.status == 'ready' and stale_ids_to_clean:
-                for old in _MV.objects.filter(id__in=stale_ids_to_clean):
-                    if old.video_file:
-                        fpath = _os.path.join(settings.MEDIA_ROOT, str(old.video_file))
-                        try:
-                            _os.remove(fpath)
-                        except OSError:
-                            pass
-                _MV.objects.filter(id__in=stale_ids_to_clean).delete()
-                logger.info("Cleaned up %d stale merged videos", len(stale_ids_to_clean))
-        except Exception as e:
-            logger.exception("Publish-merge failed for MergedVideo %s: %s", merged_id, e)
+        attempt = 0
+        while attempt <= MAX_RETRY_COUNT:
             try:
                 close_old_connections()
                 m = _MV.objects.get(pk=merged_id)
-                m.status = 'failed'
-                m.error_message = str(e)[:1000]
-                m.save(update_fields=['status', 'error_message', 'updated_at'])
-            except Exception:
-                pass
-        finally:
-            close_old_connections()
+                result = merge_playlist_slides(m.playlist, slides, w, h, force=True)
+                close_old_connections()
+                m = _MV.objects.get(pk=merged_id)
+
+                # result is now a dict: {"path": ..., "skipped_slides": [...], "error": ...}
+                merge_path = result.get('path') if isinstance(result, dict) else result
+                skipped = result.get('skipped_slides', []) if isinstance(result, dict) else []
+                merge_error = result.get('error') if isinstance(result, dict) else None
+
+                if merge_path:
+                    m.video_file = merge_path
+                    m.status = 'ready'
+                    if skipped:
+                        m.error_message = f"Completed with {len(skipped)} skipped slide(s): {skipped}"
+                    else:
+                        m.error_message = None
+                else:
+                    # Merge failed — check if we should retry
+                    if attempt < MAX_RETRY_COUNT:
+                        attempt += 1
+                        m.retry_count = attempt
+                        m.error_message = f"Attempt {attempt}/{MAX_RETRY_COUNT} failed: {merge_error or 'unknown'}. Retrying..."
+                        m.save(update_fields=['retry_count', 'error_message', 'updated_at'])
+                        logger.warning("Merge attempt %d/%d failed for MergedVideo %s, retrying in 5s...",
+                                       attempt, MAX_RETRY_COUNT, merged_id)
+                        _time.sleep(5)
+                        continue
+                    m.status = 'failed'
+                    m.retry_count = attempt
+                    m.error_message = merge_error or 'FFmpeg merge returned no output'
+
+                m.save(update_fields=['video_file', 'status', 'error_message', 'retry_count', 'updated_at'])
+                logger.info("Publish-merge MergedVideo %s => %s (attempt %d)", merged_id, m.status, attempt + 1)
+
+                # Now that new video is ready, clean up old stale records
+                if m.status == 'ready' and stale_ids_to_clean:
+                    for old in _MV.objects.filter(id__in=stale_ids_to_clean):
+                        if old.video_file:
+                            fpath = _os.path.join(settings.MEDIA_ROOT, str(old.video_file))
+                            try:
+                                _os.remove(fpath)
+                            except OSError:
+                                pass
+                    _MV.objects.filter(id__in=stale_ids_to_clean).delete()
+                    logger.info("Cleaned up %d stale merged videos", len(stale_ids_to_clean))
+                break  # Exit retry loop on success or final failure
+
+            except Exception as e:
+                logger.exception("Publish-merge failed for MergedVideo %s: %s", merged_id, e)
+                if attempt < MAX_RETRY_COUNT:
+                    attempt += 1
+                    _time.sleep(5)
+                    continue
+                try:
+                    close_old_connections()
+                    m = _MV.objects.get(pk=merged_id)
+                    m.status = 'failed'
+                    m.retry_count = attempt
+                    m.error_message = str(e)[:1000]
+                    m.save(update_fields=['status', 'error_message', 'retry_count', 'updated_at'])
+                except Exception:
+                    pass
+                break
+            finally:
+                close_old_connections()
 
     t = threading.Thread(target=_run_merge, args=(merged.id, list(slides_data), width, height, stale_ids), daemon=True)
     t.start()
@@ -491,7 +538,7 @@ class TabloTicketApiView(APIView):
             url = request.query_params.get("url") + "/trusted"
             payload = {'username': request.query_params.get("username")}
             r = requests.post(url, data=payload, verify=False, timeout=10)
-            if r.text == -1:
+            if r.text == "-1":
                 return Response({"error": "Something went wrong"}, status=400)
             return Response({"ticket_id": r.text}, status=200)
         except Exception as e:

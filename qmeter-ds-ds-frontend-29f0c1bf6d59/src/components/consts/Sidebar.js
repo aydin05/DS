@@ -10,7 +10,12 @@ import Cookies from "js-cookie";
 const { Sider } = Layout;
 export const Sidebar = ({ collapsed }) => {
   const params = useParams();
-  const user = JSON.parse(Cookies.get("user"));
+  let user = {};
+  try {
+    user = JSON.parse(Cookies.get("user")) || {};
+  } catch (e) {
+    user = {};
+  }
   const userPermissions = extractPermissionCodes(user);
 
   const filteredLinks = links.admin.filter((item) =>

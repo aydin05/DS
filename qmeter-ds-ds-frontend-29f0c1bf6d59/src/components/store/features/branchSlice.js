@@ -52,8 +52,7 @@ const getBranchDataById = createAsyncThunk(
   async ({ id, page, search }, { rejectWithValue }) => {
     try {
       const response =
-        await axiosClient.get(`branch/branch/${id}${page ? "?page=" + page : ""}
-            ${search ? "&search=" + search : ""}`);
+        await axiosClient.get(`branch/branch/${id}${page ? "?page=" + page : ""}${search ? "&search=" + search : ""}`);
       return { ...response.data, current_page_display: page };
     } catch (err) {
       if (!err.response) {

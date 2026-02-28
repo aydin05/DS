@@ -104,7 +104,7 @@ class DisplayGroupSerializer(ModelSerializer):
 
 
 
-# class DisplayGroupCreateSerizalier(ModelSerializer):
+# class DisplayGroupCreateSerializer(ModelSerializer):
 #     class Meta:
 #         model = DisplayGroup
 #         fields = ("id", 'name', 'description','playlist','schedule','display_set')
@@ -119,7 +119,7 @@ class DisplayGroupSerializer(ModelSerializer):
 
 
 
-class DisplayGroupCreateSerizalier(ModelSerializer):
+class DisplayGroupCreateSerializer(ModelSerializer):
     class Meta:
         model = DisplayGroup
         fields = ("id", 'name', 'description','playlist','schedule','display_set')

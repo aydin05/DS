@@ -22,6 +22,9 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+DOWNLOAD_TIMEOUT_SECONDS = 60
+MAX_RETRY_COUNT = 2
+
 MERGED_VIDEO_DIR = os.path.join(settings.MEDIA_ROOT, "merged_videos")
 
 
@@ -40,6 +43,17 @@ def _playlist_content_hash(playlist_id, slides_data, width, height):
     return hashlib.sha256(raw.encode()).hexdigest()[:16]
 
 
+def check_ffmpeg_available():
+    """Return True if ffmpeg is installed and callable, False otherwise."""
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-version"], capture_output=True, text=True, timeout=10
+        )
+        return result.returncode == 0
+    except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+        return False
+
+
 def _download_to_tmp(url, tmp_dir):
     """Download a remote URL to a temp file and return the local path."""
     filename = os.path.basename(url).split("?")[0] or "media_file"
@@ -52,18 +66,24 @@ def _download_to_tmp(url, tmp_dir):
         counter += 1
         local_path = f"{base}_{counter}{ext}"
 
-    if url.startswith("http://") or url.startswith("https://"):
-        urllib.request.urlretrieve(url, local_path)
-    elif os.path.isfile(url):
-        shutil.copy2(url, local_path)
-    else:
-        # Try as relative to MEDIA_ROOT
-        media_path = os.path.join(settings.MEDIA_ROOT, url.lstrip("/"))
-        if os.path.isfile(media_path):
-            shutil.copy2(media_path, local_path)
+    try:
+        if url.startswith("http://") or url.startswith("https://"):
+            response = urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT_SECONDS)
+            with open(local_path, 'wb') as f:
+                shutil.copyfileobj(response, f)
+        elif os.path.isfile(url):
+            shutil.copy2(url, local_path)
         else:
-            logger.warning("Cannot resolve media file: %s", url)
-            return None
+            # Try as relative to MEDIA_ROOT
+            media_path = os.path.join(settings.MEDIA_ROOT, url.lstrip("/"))
+            if os.path.isfile(media_path):
+                shutil.copy2(media_path, local_path)
+            else:
+                logger.warning("Cannot resolve media file: %s", url)
+                return None
+    except (urllib.request.URLError, OSError, TimeoutError) as e:
+        logger.warning("Failed to download media file %s: %s", url, e)
+        return None
     return local_path
 
 
@@ -93,6 +113,7 @@ def _build_slide_segment(slide_data, canvas_w, canvas_h, tmp_dir, segment_index)
     video_items = [it for it in items if it.get("type_content") == "video"]
     image_items = [it for it in items if it.get("type_content") == "image"]
     text_items = [it for it in items if it.get("type_content") in ("text", "globaltext")]
+    table_items = [it for it in items if it.get("type_content") == "table"]
 
     # ── Case 1: Slide has a video item ────────────────────────────────
     if video_items:
@@ -115,6 +136,9 @@ def _build_slide_segment(slide_data, canvas_w, canvas_h, tmp_dir, segment_index)
             filter_parts.append("[bg][vid]overlay=0:0:shortest=1[base]")
 
             current_label = "base"
+            current_label = _add_table_overlays(
+                filter_parts, table_items, current_label, canvas_w, canvas_h
+            )
             current_label = _add_text_overlays(
                 filter_parts, text_items, current_label, canvas_w, canvas_h
             )
@@ -137,21 +161,21 @@ def _build_slide_segment(slide_data, canvas_w, canvas_h, tmp_dir, segment_index)
             # Video file not found — fall back to static bg
             cmd = _build_static_segment_cmd(
                 ff_bg, canvas_w, canvas_h, duration, text_items,
-                image_items, tmp_dir, segment_path
+                table_items, image_items, tmp_dir, segment_path
             )
 
     # ── Case 2: Image-only (or image + text) slide ───────────────────
     elif image_items:
         cmd = _build_static_segment_cmd(
             ff_bg, canvas_w, canvas_h, duration, text_items,
-            image_items, tmp_dir, segment_path
+            table_items, image_items, tmp_dir, segment_path
         )
 
-    # ── Case 3: Text-only slide ──────────────────────────────────────
+    # ── Case 3: Text/table-only slide ─────────────────────────────────
     else:
         cmd = _build_static_segment_cmd(
             ff_bg, canvas_w, canvas_h, duration, text_items,
-            [], tmp_dir, segment_path
+            table_items, [], tmp_dir, segment_path
         )
 
     logger.info("FFmpeg segment %d cmd: %s", segment_index, " ".join(cmd))
@@ -170,7 +194,7 @@ def _build_slide_segment(slide_data, canvas_w, canvas_h, tmp_dir, segment_index)
 
 
 def _build_static_segment_cmd(ff_bg, canvas_w, canvas_h, duration,
-                               text_items, image_items, tmp_dir, output_path):
+                               text_items, table_items, image_items, tmp_dir, output_path):
     """Build an FFmpeg command for a static (non-video) slide."""
     # Input 0 is always the lavfi color background.
     # Image inputs start at index 1.
@@ -207,6 +231,11 @@ def _build_static_segment_cmd(ff_bg, canvas_w, canvas_h, duration,
         current_label = out_label
         img_input_idx += 1
 
+    # Add table overlays
+    current_label = _add_table_overlays(
+        filter_parts, table_items, current_label, canvas_w, canvas_h
+    )
+
     # Add text overlays
     current_label = _add_text_overlays(
         filter_parts, text_items, current_label, canvas_w, canvas_h
@@ -231,6 +260,149 @@ def _build_static_segment_cmd(ff_bg, canvas_w, canvas_h, duration,
         output_path,
     ])
     return cmd
+
+
+def _normalize_color(color_str, default="0xFFFFFF"):
+    """Convert CSS color to FFmpeg 0x format. Returns default for empty/transparent."""
+    if not color_str or color_str == "transparent":
+        return None
+    if color_str.startswith("#"):
+        return color_str.replace("#", "0x")
+    if color_str.startswith("0x"):
+        return color_str
+    return default
+
+
+def _add_table_overlays(filter_parts, table_items, current_label, canvas_w, canvas_h):
+    """Render table widgets using drawbox (cells/grid) and drawtext (cell text).
+    Returns the final filter label."""
+    lbl_idx = 0
+
+    for tbl_i, item in enumerate(table_items):
+        attr = item.get("attr", {})
+        columns = attr.get("columns", [])
+        rows = attr.get("rows", [])
+        if not columns:
+            continue
+
+        tbl_x = int(item.get("left", 0))
+        tbl_y = int(item.get("top", 0))
+        tbl_w = int(item.get("width", 400))
+        tbl_h = int(item.get("height", 200))
+
+        num_cols = len(columns)
+        num_rows = len(rows)
+        total_rows = 1 + num_rows  # header row + data rows
+        col_w = tbl_w // max(num_cols, 1)
+        row_h = tbl_h // max(total_rows, 1)
+
+        tbl_bg = _normalize_color(attr.get("bg_color"))
+
+        # Draw table background if set
+        if tbl_bg:
+            out = f"tbl{tbl_i}_bg"
+            filter_parts.append(
+                f"[{current_label}]drawbox=x={tbl_x}:y={tbl_y}:w={tbl_w}:h={tbl_h}:"
+                f"color={tbl_bg}@0.9:t=fill[{out}]"
+            )
+            current_label = out
+            lbl_idx += 1
+
+        # ── Header cells ──
+        for ci, col in enumerate(columns):
+            cell_x = tbl_x + ci * col_w
+            cell_y = tbl_y
+            col_attr = col.get("attr", {})
+            cell_bg = _normalize_color(col_attr.get("backgroundColor"))
+            cell_color = _normalize_color(col_attr.get("color"), "0xCA1A33")
+            cell_fs = int(col_attr.get("fontSize", 20))
+            cell_text = (col.get("text", "") or "").strip()
+
+            # Cell background
+            if cell_bg:
+                out = f"tbl{tbl_i}_hbg{ci}"
+                filter_parts.append(
+                    f"[{current_label}]drawbox=x={cell_x}:y={cell_y}:w={col_w}:h={row_h}:"
+                    f"color={cell_bg}@0.9:t=fill[{out}]"
+                )
+                current_label = out
+                lbl_idx += 1
+
+            # Cell text
+            if cell_text:
+                escaped = cell_text.replace("'", "\u2019").replace(":", "\\:").replace("\\", "\\\\")
+                text_x = cell_x + col_w // 2
+                text_y = cell_y + row_h // 2
+                out = f"tbl{tbl_i}_htx{ci}"
+                filter_parts.append(
+                    f"[{current_label}]drawtext=text='{escaped}':"
+                    f"fontsize={cell_fs}:fontcolor={cell_color}:"
+                    f"x={text_x}-(tw/2):y={text_y}-(th/2)[{out}]"
+                )
+                current_label = out
+                lbl_idx += 1
+
+        # ── Data rows ──
+        for ri, row in enumerate(rows):
+            for ci, cell in enumerate(row):
+                if ci >= num_cols:
+                    break
+                cell_x = tbl_x + ci * col_w
+                cell_y = tbl_y + (ri + 1) * row_h  # +1 to skip header
+                cell_attr = cell.get("attr", {}) if isinstance(cell, dict) else {}
+                cell_bg = _normalize_color(cell_attr.get("backgroundColor"))
+                cell_color = _normalize_color(cell_attr.get("color"), "0x000000")
+                cell_fs = int(cell_attr.get("fontSize", 20))
+                cell_text = (cell.get("text", "") if isinstance(cell, dict) else str(cell)).strip()
+
+                # Cell background
+                if cell_bg:
+                    out = f"tbl{tbl_i}_rbg{ri}_{ci}"
+                    filter_parts.append(
+                        f"[{current_label}]drawbox=x={cell_x}:y={cell_y}:w={col_w}:h={row_h}:"
+                        f"color={cell_bg}@0.9:t=fill[{out}]"
+                    )
+                    current_label = out
+                    lbl_idx += 1
+
+                # Cell text
+                if cell_text:
+                    escaped = cell_text.replace("'", "\u2019").replace(":", "\\:").replace("\\", "\\\\")
+                    text_x = cell_x + col_w // 2
+                    text_y = cell_y + row_h // 2
+                    out = f"tbl{tbl_i}_rtx{ri}_{ci}"
+                    filter_parts.append(
+                        f"[{current_label}]drawtext=text='{escaped}':"
+                        f"fontsize={cell_fs}:fontcolor={cell_color}:"
+                        f"x={text_x}-(tw/2):y={text_y}-(th/2)[{out}]"
+                    )
+                    current_label = out
+                    lbl_idx += 1
+
+        # ── Grid lines ──
+        grid_color = "0x999999"
+        # Horizontal lines
+        for ri in range(total_rows + 1):
+            ly = tbl_y + ri * row_h
+            out = f"tbl{tbl_i}_hl{ri}"
+            filter_parts.append(
+                f"[{current_label}]drawbox=x={tbl_x}:y={ly}:w={tbl_w}:h=1:"
+                f"color={grid_color}:t=fill[{out}]"
+            )
+            current_label = out
+            lbl_idx += 1
+        # Vertical lines
+        for ci in range(num_cols + 1):
+            lx = tbl_x + ci * col_w
+            out = f"tbl{tbl_i}_vl{ci}"
+            filter_parts.append(
+                f"[{current_label}]drawbox=x={lx}:y={tbl_y}:w=1:h={tbl_h}:"
+                f"color={grid_color}:t=fill[{out}]"
+            )
+            current_label = out
+            lbl_idx += 1
+
+    return current_label
 
 
 def _add_text_overlays(filter_parts, text_items, current_label, canvas_w, canvas_h):
@@ -312,7 +484,12 @@ def merge_playlist_slides(playlist, slides_data, width, height, force=False):
     # Return cached if exists and not forcing
     if not force and os.path.isfile(output_path):
         logger.info("Returning cached merged video: %s", relative_path)
-        return relative_path
+        return {"path": relative_path, "skipped_slides": []}
+
+    if not check_ffmpeg_available():
+        logger.error("FFmpeg is not installed or not accessible")
+        return {"path": None, "skipped_slides": list(range(len(slides_data))),
+                "error": "FFmpeg is not installed or not accessible"}
 
     logger.info("Starting merge for playlist %s (%dx%d, %d slides)",
                 playlist.id, width, height, len(slides_data))
@@ -320,22 +497,25 @@ def merge_playlist_slides(playlist, slides_data, width, height, force=False):
     tmp_dir = tempfile.mkdtemp(prefix="ds_merge_")
     try:
         segment_paths = []
+        skipped_slides = []
         for i, slide in enumerate(slides_data):
             seg = _build_slide_segment(slide, width, height, tmp_dir, i)
             if seg:
                 segment_paths.append(seg)
             else:
                 logger.warning("Skipping slide %d — segment build failed", i)
+                skipped_slides.append(i)
 
         if not segment_paths:
             logger.error("No segments produced for playlist %s", playlist.id)
-            return None
+            return {"path": None, "skipped_slides": skipped_slides,
+                    "error": "All slide segments failed to build"}
 
         # If only one segment, just copy it
         if len(segment_paths) == 1:
             shutil.copy2(segment_paths[0], output_path)
             logger.info("Single segment, copied directly.")
-            return relative_path
+            return {"path": relative_path, "skipped_slides": skipped_slides}
 
         # Concatenate all segments using FFmpeg concat demuxer
         concat_list_path = os.path.join(tmp_dir, "concat_list.txt")
@@ -358,13 +538,15 @@ def merge_playlist_slides(playlist, slides_data, width, height, force=False):
         result = subprocess.run(concat_cmd, capture_output=True, text=True, timeout=300)
         if result.returncode != 0:
             logger.error("FFmpeg concat failed: %s", result.stderr[-500:])
-            return None
+            return {"path": None, "skipped_slides": skipped_slides,
+                    "error": f"FFmpeg concat failed: {result.stderr[-300:]}"}
 
         logger.info("Merged video created: %s", relative_path)
-        return relative_path
+        return {"path": relative_path, "skipped_slides": skipped_slides}
 
     except Exception as e:
         logger.exception("Error merging playlist %s: %s", playlist.id, str(e))
-        return None
+        return {"path": None, "skipped_slides": [],
+                "error": f"Unexpected error: {str(e)[:500]}"}
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)

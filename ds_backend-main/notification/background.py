@@ -46,14 +46,15 @@ def _run_checker_loop():
 def _check_and_notify():
     """Check all companies for inactive/active device transitions and send notifications.
     Returns the sleep interval in seconds for the next check."""
-    from notification.models import EmailConfig, NotificationSetting
+    from notification.models import EmailConfig, NotificationSetting, RecipientList
     from display.models import Display
     from core.api.serializer import get_threshold_for_company
+    from notification.email_sender import send_email
+    from django.db.models import Q
 
     settings_qs = NotificationSetting.objects.filter(
         is_enabled=True,
-        recipient_list__isnull=False,
-    ).select_related('company', 'recipient_list', 'inactive_template', 'active_template')
+    ).select_related('company', 'inactive_template', 'active_template')
 
     logger.info(f"[CHECKER] Running check. Found {settings_qs.count()} active notification settings")
 
@@ -75,77 +76,79 @@ def _check_and_notify():
             logger.warning(f"[CHECKER] {company.name}: No active EmailConfig, skipping.")
             continue
 
-        recipients = list(
-            ns.recipient_list.recipients.values_list('email', flat=True)
-        )
-        if not recipients:
-            logger.warning(f"[CHECKER] {company.name}: Recipient list is empty, skipping.")
+        recipient_lists = RecipientList.objects.filter(company=company).prefetch_related('recipients', 'branches')
+        if not recipient_lists.exists():
+            logger.warning(f"[CHECKER] {company.name}: No recipient lists found, skipping.")
             continue
 
-        # Base queryset: only displays with notifications enabled
-        from django.db.models import Q
-        notifiable = Display.objects.filter(
-            company=company,
-            notifications_enabled=True,
-            branch__notifications_enabled=True,
-        ).select_related('branch')
-
-        # If the recipient list is scoped to specific branches, filter further
-        rl_branches = ns.recipient_list.branches.all()
-        if rl_branches.exists():
-            notifiable = notifiable.filter(branch__in=rl_branches)
-
-        # --- 1) Devices that went INACTIVE (heartbeat stale + not yet notified) ---
-        newly_inactive = notifiable.filter(
-            Q(last_heartbeat__lt=threshold) | Q(last_heartbeat__isnull=True),
-            was_notified_inactive=False,
-        )
-
-        # --- 2) Devices that came back ACTIVE (heartbeat fresh + were notified inactive) ---
-        back_online = notifiable.filter(
-            last_heartbeat__gte=threshold,
-            was_notified_inactive=True,
-        )
-
-        inactive_count = newly_inactive.count()
-        online_count = back_online.count()
-        logger.info(f"[CHECKER] {company.name}: threshold={threshold_sec}s, "
-                    f"{inactive_count} newly inactive, {online_count} back online")
-        if inactive_count == 0 and online_count == 0:
-            continue
-
-        from notification.email_sender import send_email
-
-        # Send INACTIVE notifications
         inactive_tpl = ns.inactive_template
-        for display in newly_inactive:
-            if not inactive_tpl:
-                continue
-            subject = _render(inactive_tpl.subject, display, company, status='Inactive')
-            body = _render(inactive_tpl.body, display, company, status='Inactive')
-            success, error = send_email(email_config, recipients, subject, body)
-            if success:
-                display.was_notified_inactive = True
-                display.last_notified_inactive_at = timezone.now()
-                display.save(update_fields=['was_notified_inactive', 'last_notified_inactive_at'])
-                logger.info(f"[INACTIVE] Sent notification for '{display.name}' ({company.name})")
-            else:
-                logger.error(f"[INACTIVE] Failed for '{display.name}' ({company.name}): {error}")
-
-        # Send ACTIVE (back online) notifications
         active_tpl = ns.active_template
-        for display in back_online:
-            if not active_tpl:
+
+        for rl in recipient_lists:
+            recipients = list(rl.recipients.values_list('email', flat=True))
+            if not recipients:
+                logger.warning(f"[CHECKER] {company.name} / list \"{rl.name}\": No recipients, skipping.")
                 continue
-            subject = _render(active_tpl.subject, display, company, status='Active')
-            body = _render(active_tpl.body, display, company, status='Active')
-            success, error = send_email(email_config, recipients, subject, body)
-            if success:
-                display.was_notified_inactive = False
-                display.save(update_fields=['was_notified_inactive'])
-                logger.info(f"[ACTIVE] Sent notification for '{display.name}' ({company.name})")
-            else:
-                logger.error(f"[ACTIVE] Failed for '{display.name}' ({company.name}): {error}")
+
+            # Base queryset: only displays with notifications enabled
+            notifiable = Display.objects.filter(
+                company=company,
+                notifications_enabled=True,
+                branch__notifications_enabled=True,
+            ).select_related('branch')
+
+            # If this recipient list is scoped to specific branches, filter further
+            rl_branches = rl.branches.all()
+            if rl_branches.exists():
+                notifiable = notifiable.filter(branch__in=rl_branches)
+
+            # --- 1) Devices that went INACTIVE (heartbeat stale + not yet notified) ---
+            newly_inactive = notifiable.filter(
+                Q(last_heartbeat__lt=threshold) | Q(last_heartbeat__isnull=True),
+                was_notified_inactive=False,
+            )
+
+            # --- 2) Devices that came back ACTIVE (heartbeat fresh + were notified inactive) ---
+            back_online = notifiable.filter(
+                last_heartbeat__gte=threshold,
+                was_notified_inactive=True,
+            )
+
+            inactive_count = newly_inactive.count()
+            online_count = back_online.count()
+            logger.info(f"[CHECKER] {company.name} / list \"{rl.name}\": threshold={threshold_sec}s, "
+                        f"{inactive_count} newly inactive, {online_count} back online")
+            if inactive_count == 0 and online_count == 0:
+                continue
+
+            # Send INACTIVE notifications
+            for display in newly_inactive:
+                if not inactive_tpl:
+                    continue
+                subject = _render(inactive_tpl.subject, display, company, status='Inactive')
+                body = _render(inactive_tpl.body, display, company, status='Inactive')
+                success, error = send_email(email_config, recipients, subject, body)
+                if success:
+                    display.was_notified_inactive = True
+                    display.last_notified_inactive_at = timezone.now()
+                    display.save(update_fields=['was_notified_inactive', 'last_notified_inactive_at'])
+                    logger.info(f"[INACTIVE] Sent for '{display.name}' ({company.name}) -> {rl.name}")
+                else:
+                    logger.error(f"[INACTIVE] Failed for '{display.name}' ({company.name}): {error}")
+
+            # Send ACTIVE (back online) notifications
+            for display in back_online:
+                if not active_tpl:
+                    continue
+                subject = _render(active_tpl.subject, display, company, status='Active')
+                body = _render(active_tpl.body, display, company, status='Active')
+                success, error = send_email(email_config, recipients, subject, body)
+                if success:
+                    display.was_notified_inactive = False
+                    display.save(update_fields=['was_notified_inactive'])
+                    logger.info(f"[ACTIVE] Sent for '{display.name}' ({company.name}) -> {rl.name}")
+                else:
+                    logger.error(f"[ACTIVE] Failed for '{display.name}' ({company.name}): {error}")
 
     return min_interval
 

@@ -11,5 +11,5 @@ def create_widget_type(sender, instance, created, **kwargs):
         for widget_type in widget_types:
             WidgetType.objects.get_or_create(name=widget_type.get("name"), label=widget_type.get("label"), company=instance, attr=widget_type.get("attr"))
     else:
-        print("Company already exists")
+        pass
 

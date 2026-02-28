@@ -1,8 +1,8 @@
 from core.models import WidgetType
 from display.models import *
 from rest_framework import permissions
-from display.api.serializers import DisplayTypeSerializer, DisplayGroupSerializer,DisplaySerializer,DisplayGroupCreateSerizalier
-from display.api.permissions import DisplayTpyePermission,DisplayGroupPermission,DisplayPermission
+from display.api.serializers import DisplayTypeSerializer, DisplayGroupSerializer,DisplaySerializer,DisplayGroupCreateSerializer
+from display.api.permissions import DisplayTypePermission,DisplayGroupPermission,DisplayPermission
 from core.api.viewsets import MultiSerializerViewSet
 from rest_framework.generics import ListAPIView
 from rest_framework import filters
@@ -13,7 +13,7 @@ from playlist.models import Playlist
 class DisplayTypeViewSet(MultiSerializerViewSet):
     queryset = DisplayType.objects.all()
     multi_permissions = {
-        'default': (permissions.IsAuthenticated, DisplayTpyePermission,)
+        'default': (permissions.IsAuthenticated, DisplayTypePermission,)
     }
     multi_serializers = {
         'default': DisplayTypeSerializer,
@@ -31,9 +31,9 @@ class DisplayGroupViewSet(MultiSerializerViewSet):
     }
     multi_serializers = {
         'list': DisplayGroupSerializer,
-        'create': DisplayGroupCreateSerizalier,
+        'create': DisplayGroupCreateSerializer,
         'default': DisplayGroupSerializer,
-        'update': DisplayGroupCreateSerizalier
+        'update': DisplayGroupCreateSerializer
 
     }
     filter_backends = [filters.SearchFilter]

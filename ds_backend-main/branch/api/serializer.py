@@ -45,7 +45,7 @@ class BranchSerializer(ModelSerializer):
         old_branch = Branch.objects.filter(name__iexact=attrs.strip(), company=self.context['request'].user.company)
         if self.instance:
             old_branch = old_branch.exclude(id=self.instance.id)
-        elif old_branch.exists():
+        if old_branch.exists():
             raise serializers.ValidationError("Branch name already exists")
         return super().validate(attrs)
         

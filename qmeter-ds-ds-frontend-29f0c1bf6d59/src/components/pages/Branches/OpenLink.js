@@ -5,6 +5,10 @@ import axiosClient, { AUTO_FETCH } from "../../../config";
 const HEARTBEAT_INTERVAL = 30000;
 const LOG_FLUSH_INTERVAL = 30000;
 
+// LocalStorage keys for offline fallback
+const LS_VIDEO_URL_PREFIX = "ds_cached_video_url_";
+const LS_DISPLAY_SIZE_PREFIX = "ds_cached_display_size_";
+
 // --- Device Logger ---
 const logBuffer = [];
 let lastPlaylistId = null;
@@ -30,12 +34,47 @@ function flushLogs(username) {
   });
 }
 
+// --- Register Service Worker for offline caching ---
+function registerServiceWorker() {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((reg) => {
+        console.log("[SW] Registered, scope:", reg.scope);
+        deviceLog("INFO", "Service Worker registered", { scope: reg.scope });
+      })
+      .catch((err) => {
+        console.warn("[SW] Registration failed:", err.message);
+      });
+  }
+}
+
 function OpenLink() {
   const params = useParams();
-  const [mergedVideoUrl, setMergedVideoUrl] = useState(null);
-  const [displaySize, setDisplaySize] = useState({ width: null, height: null });
+  const [mergedVideoUrl, setMergedVideoUrl] = useState(() => {
+    // On mount: try to load last known video URL from localStorage (offline fallback)
+    try {
+      return localStorage.getItem(LS_VIDEO_URL_PREFIX + params.username) || null;
+    } catch (e) { return null; }
+  });
+  const [displaySize, setDisplaySize] = useState(() => {
+    try {
+      const cached = localStorage.getItem(LS_DISPLAY_SIZE_PREFIX + params.username);
+      return cached ? JSON.parse(cached) : { width: null, height: null };
+    } catch (e) { return { width: null, height: null }; }
+  });
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [apiReachable, setApiReachable] = useState(true);
   const autoFetchRef = useRef(null);
   const videoRef = useRef(null);
+
+  // Connection is considered lost if browser is offline OR API is unreachable
+  const connectionLost = isOffline || !apiReachable;
+
+  // --- Register Service Worker once ---
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
 
   // --- Log flush interval ---
   useEffect(() => {
@@ -60,7 +99,10 @@ function OpenLink() {
       lastPlaylistId = newPlaylistId;
 
       if (data.general) {
-        setDisplaySize({ width: data.general.width, height: data.general.height });
+        const size = { width: data.general.width, height: data.general.height };
+        setDisplaySize(size);
+        // Persist display size for offline use
+        try { localStorage.setItem(LS_DISPLAY_SIZE_PREFIX + params.username, JSON.stringify(size)); } catch (e) {}
       }
 
       setMergedVideoUrl(prev => {
@@ -68,12 +110,20 @@ function OpenLink() {
         if (prev === newUrl) return prev;
         if (newUrl) {
           deviceLog("INFO", "Merged video URL updated", { url: newUrl });
+          // Persist video URL for offline fallback
+          try { localStorage.setItem(LS_VIDEO_URL_PREFIX + params.username, newUrl); } catch (e) {}
         }
         return newUrl;
       });
+
+      // API succeeded — connection is healthy
+      setApiReachable(true);
     } catch (err) {
       deviceLog("ERROR", "API fetch failed", { error: err.message, name: err.name });
       console.error("API Error:", err);
+      // Mark API as unreachable — shows red dot
+      setApiReachable(false);
+      // Keep current mergedVideoUrl (already set from localStorage or previous fetch)
     }
   }, [params.username]);
 
@@ -82,6 +132,26 @@ function OpenLink() {
     getData();
     autoFetchRef.current = setInterval(getData, AUTO_FETCH || 30000);
     return () => clearInterval(autoFetchRef.current);
+  }, [getData]);
+
+  // --- Online/offline detection ---
+  useEffect(() => {
+    const goOnline = () => {
+      setIsOffline(false);
+      deviceLog("INFO", "Network restored — fetching latest playlist");
+      // Immediately fetch new data when network comes back
+      getData();
+    };
+    const goOffline = () => {
+      setIsOffline(true);
+      deviceLog("WARN", "Network lost — using cached content");
+    };
+    window.addEventListener("online", goOnline);
+    window.addEventListener("offline", goOffline);
+    return () => {
+      window.removeEventListener("online", goOnline);
+      window.removeEventListener("offline", goOffline);
+    };
   }, [getData]);
 
   // --- Heartbeat ---
@@ -98,7 +168,24 @@ function OpenLink() {
   }, [params.username]);
 
   return (
-    <div style={{ width: "100%", height: "100vh", backgroundColor: "#000", overflow: "hidden" }}>
+    <div style={{ width: "100%", height: "100vh", backgroundColor: "#000", overflow: "hidden", position: "relative" }}>
+      {/* Red dot — visible when connection is lost */}
+      {connectionLost && (
+        <div
+          style={{
+            position: "absolute",
+            top: 16,
+            right: 16,
+            width: 16,
+            height: 16,
+            borderRadius: "50%",
+            backgroundColor: "#ef4444",
+            zIndex: 10,
+            boxShadow: "0 0 6px 2px rgba(239, 68, 68, 0.6)",
+          }}
+        />
+      )}
+
       {mergedVideoUrl ? (
         <video
           ref={videoRef}
@@ -122,7 +209,7 @@ function OpenLink() {
         />
       ) : (
         <div style={{ color: "white", textAlign: "center", paddingTop: "20%", fontSize: 18 }}>
-          Waiting for merged video...
+          {connectionLost ? "Offline — no cached video available" : "Waiting for merged video..."}
         </div>
       )}
     </div>

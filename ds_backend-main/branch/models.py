@@ -1,12 +1,7 @@
 from django.db import models
-
-# Create your models here.
-from django.db import models
 from dsqmeter.utils.base_model import BaseModel
 from django.utils.translation import gettext_lazy as _
 from utils.choices import TIMEZONE_LIST
-
-# Create your models here.
 
 
 

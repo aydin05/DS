@@ -1,6 +1,6 @@
 from rest_framework.routers import DefaultRouter
 from account.api.viewsets import RoleGroupViewSet
-from core.api.viewsets import *
+from core.api.viewsets import CompanyUserViewSet
 
 
 router = DefaultRouter()

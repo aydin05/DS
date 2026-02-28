@@ -38,6 +38,7 @@ const loginSlice = createSlice({
     },
     logOut: (state) => {
       Cookies.remove("q-token");
+      Cookies.remove("user");
       return {
         isLoading: false,
         error: {},

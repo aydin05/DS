@@ -11,7 +11,9 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
 from pathlib import Path
+from datetime import timedelta
 import os
+import pytz
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 from corsheaders.defaults import default_headers
@@ -134,7 +136,6 @@ DATABASES = {
 REST_FRAMEWORK = {
     'PAGE_SIZE': 10,
     'DATE_FORMAT': "%Y-%m-%d",
-    'USER_SERIALIZER': 'base_user.serializers.CustomUserSerializer',
     'DATETIME_FORMAT': "%Y-%m-%d %H:%M:%S",
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -146,7 +147,6 @@ REST_FRAMEWORK = {
     # )
 }
 
-from datetime import timedelta
 REST_KNOX = {
   'SECURE_HASH_ALGORITHM': 'hashlib.sha512',
   'AUTH_TOKEN_CHARACTER_LENGTH': 64,
@@ -212,7 +212,6 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-import pytz
 
 
 default_tz = pytz.timezone("Asia/Dubai")

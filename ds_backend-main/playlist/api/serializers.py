@@ -157,16 +157,16 @@ class SlideItemSerializer(ModelSerializer):
         if "columns" in validated_data:
             validated_data.pop('columns')
         slide_item = super().create(validated_data)
-        if type(display_type) == list:
+        if isinstance(display_type, list):
             for display_type_item in display_type:
-                display_type = DisplayType.objects.filter(id=display_type_item['id']).last()
+                dt_obj = DisplayType.objects.filter(id=display_type_item['id']).last()
                 validated_data.update({'top': display_type_item['top']})
                 validated_data.update({'left': display_type_item['left']})
                 validated_data.update({'width': display_type_item['width']})
                 validated_data.update({'height': display_type_item['height']})
                 slide_item_display_type_data = {
                     'slide_item':slide_item,
-                    'display_type':display_type,
+                    'display_type':dt_obj,
                     'top':display_type_item['top'],
                     'left':display_type_item['left'],
                     'width':display_type_item['width'],
@@ -286,7 +286,7 @@ class SlideCreateSerializer(ModelSerializer):
         for slide_item in slide_items:
             display_types = []
             # if 'display-types' in slide_item:
-            display_types = slide_item.pop('display_types')
+            display_types = slide_item.pop('display_types', [])
             slide_item_type = WidgetType.objects.get(id=slide_item['type'])
             slide_item['slide'] = slide
             slide_item['type'] = slide_item_type

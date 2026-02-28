@@ -152,9 +152,13 @@ const playListInnerSlice = createSlice({
           if (item.items.length === 0) {
             item.selectedIndex = 0;
           } else item.selectedIndex = item.items[item.items.length - 1].index;
-          item.duration = findMaxElement(
-            videoDurations.map((v) => ({ index: v.duration })),
-          ); /*set max duration of video durations*/
+          if (videoDurations.length > 0) {
+            item.duration = findMaxElement(
+              videoDurations.map((v) => ({ index: v.duration })),
+            ); /*set max duration of video durations*/
+          } else if (action.payload.type === "video") {
+            item.duration = 10; /* reset to default when last video removed */
+          }
           return item;
         }
         return item;
@@ -223,7 +227,6 @@ const playListInnerSlice = createSlice({
         state.selectedItem = state.slides.find(
           (item) => item.position === action.payload,
         );
-        state.isMutated = true;
       }
     },
     updateItemIndex: (state, action) => {
@@ -568,7 +571,8 @@ const playListInnerSlice = createSlice({
             return { duration: i.attr.duration, name: i.attr.location };
           }),
           items: item.items.map((i, y) => {
-            let type = widgetTypes.find((x) => x.id === i.type).name;
+            const widgetMatch = widgetTypes.find((x) => x.id === i.type);
+            let type = widgetMatch ? widgetMatch.name : "unknown";
 
             if (i.display_types) i["display_types"] = i.display_types;
             let defaultBody = {
@@ -646,6 +650,8 @@ const playListInnerSlice = createSlice({
                     rows: i.attr.rows,
                   },
                 };
+              default:
+                return defaultBody;
             }
           }),
         };
@@ -680,7 +686,8 @@ const playListInnerSlice = createSlice({
           position: item.position,
           selectedIndex: findMaxElement(item.items),
           items: item.items.map((i, y) => {
-            let type = widgetTypes.find((x) => x.id === i.type).name;
+            const widgetMatchPreview = widgetTypes.find((x) => x.id === i.type);
+            let type = widgetMatchPreview ? widgetMatchPreview.name : "unknown";
             let defaultBody = {
               width: i.width,
               height: i.height,
@@ -734,6 +741,8 @@ const playListInnerSlice = createSlice({
                     rows: i.attr.rows,
                   },
                 };
+              default:
+                return defaultBody;
             }
           }),
         };

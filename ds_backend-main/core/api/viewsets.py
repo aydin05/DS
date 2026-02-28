@@ -208,11 +208,7 @@ def _authenticate_display(username, password):
     """Validate display credentials. Returns Display or None."""
     if not username or not password:
         return None
-    try:
-        display = Display.objects.filter(username=username, password=password).last()
-        return display
-    except Display.DoesNotExist:
-        return None
+    return Display.objects.filter(username=username, password=password).last()
 
 
 def _update_heartbeat(display, source='unknown'):
@@ -422,8 +418,12 @@ class DeviceLogViewSet(ReadOnlyModelViewSet):
         sanitized = sanitize_filename(username)
         log_file_path = os.path.join(LOGS_BASE_DIR, f"user_{sanitized}.log")
         if os.path.exists(log_file_path):
-            relative_path = os.path.join(settings.MEDIA_URL, 'logs', f"user_{sanitized}.log")
-            return Response(relative_path)
+            from django.http import FileResponse
+            return FileResponse(
+                open(log_file_path, 'rb'),
+                as_attachment=True,
+                filename=f"user_{sanitized}.log",
+            )
         return Response(
             {"error": "Log file not found."},
             status=status.HTTP_404_NOT_FOUND

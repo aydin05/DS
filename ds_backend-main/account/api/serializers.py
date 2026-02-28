@@ -11,8 +11,6 @@ from branch.models import Branch
 from django.contrib.auth.hashers import make_password
 from utils.choices import TIMEZONE_LIST
 from django.core import validators
-from .utils import default_create_token
-from rest_framework.exceptions import ValidationError
 from account.tools.validators import url_field_validator
 
 User = get_user_model()

@@ -80,6 +80,7 @@ class MergedVideo(BaseModel):
                  ('ready', 'Ready'), ('failed', 'Failed')]
     )
     error_message = models.TextField(_("Error"), null=True, blank=True)
+    retry_count = models.PositiveIntegerField(_("Retry Count"), default=0)
 
     class Meta:
         unique_together = ('playlist', 'display_type', 'content_hash')
