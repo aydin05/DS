@@ -99,8 +99,9 @@ const playListSlice = createSlice({
       state.requestStatus = "";
     },
     toggleDeleteModal: (state, action) => {
-      state.isOpenDeleteModal = !state.isOpenDeleteModal;
-      state.deletedPlaylistId = action.payload;
+      const { open, id } = action.payload ?? {};
+      state.isOpenDeleteModal = open ?? !state.isOpenDeleteModal;
+      state.deletedPlaylistId = id ?? null;
       state.deleteDataLoading = false;
     },
     toggleDuplicateModal: (state) => {

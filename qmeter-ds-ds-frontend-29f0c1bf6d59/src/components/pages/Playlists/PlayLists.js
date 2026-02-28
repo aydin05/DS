@@ -54,7 +54,7 @@ export const PlayLists = () => {
   const mergePollingRef = useRef(null);
 
   const toggleEdit = useCallback(() => dispatch(toggleModal()), [dispatch]);
-  const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id)), [dispatch]);
+  const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id !== null ? { open: true, id } : { open: false, id: null })), [dispatch]);
   const [duplicateForm] = Form.useForm();
 
   const finish = useCallback((values) => {
