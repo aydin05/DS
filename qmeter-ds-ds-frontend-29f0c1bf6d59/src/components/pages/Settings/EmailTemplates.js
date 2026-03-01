@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { Button, Form, Input, Switch, Dropdown, Menu, message } from "antd";
+import { Button, Form, Input, Switch, Dropdown, Menu, message, Popconfirm } from "antd";
 import { SubHeader } from "../../SubComponents/SubHeader";
 import { AuthModal } from "../../SubComponents/AuthModal";
 import CustomDataTable from "../../consts/CustomDataTable";
@@ -126,9 +126,16 @@ export const EmailTemplates = () => {
               },
               {
                 key: "delete",
-                label: "Delete",
-                danger: true,
-                onClick: () => onDelete(row.id),
+                label: (
+                  <Popconfirm
+                    title="Are you sure you want to delete this template?"
+                    onConfirm={() => onDelete(row.id)}
+                    okText="Delete"
+                    cancelText="Cancel"
+                  >
+                    <span style={{ color: "#ff4d4f" }}>Delete</span>
+                  </Popconfirm>
+                ),
               },
             ],
           }}

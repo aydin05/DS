@@ -14,7 +14,7 @@ export const AuthModal = ({
     <div>
       <Modal
         title={title}
-        visible={isOpen}
+        open={isOpen}
         onCancel={cancel}
         onOk={save}
         okButtonProps={{ style: { display: isFooter } }}

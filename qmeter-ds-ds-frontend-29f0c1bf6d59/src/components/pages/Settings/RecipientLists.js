@@ -11,6 +11,7 @@ import {
   Tooltip,
   Space,
   Divider,
+  Popconfirm,
 } from "antd";
 import { SubHeader } from "../../SubComponents/SubHeader";
 import { AuthModal } from "../../SubComponents/AuthModal";
@@ -238,9 +239,16 @@ export const RecipientLists = () => {
               },
               {
                 key: "delete",
-                label: "Delete",
-                danger: true,
-                onClick: () => onDelete(row.id),
+                label: (
+                  <Popconfirm
+                    title="Are you sure you want to delete this list?"
+                    onConfirm={() => onDelete(row.id)}
+                    okText="Delete"
+                    cancelText="Cancel"
+                  >
+                    <span style={{ color: "#ff4d4f" }}>Delete</span>
+                  </Popconfirm>
+                ),
               },
             ],
           }}

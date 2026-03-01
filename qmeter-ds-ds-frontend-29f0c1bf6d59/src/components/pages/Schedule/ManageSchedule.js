@@ -12,6 +12,7 @@ import {
   updateScheduleDateForm,
 } from "../../store/features/scheduleSlice";
 import { useNavigate, useParams } from "react-router-dom";
+import arrowLeft from "../../../assets/images/arrow-left.svg";
 import {
   Button,
   Checkbox,
@@ -93,8 +94,9 @@ const ManageSchedule = (props) => {
       !isOpenScheduleDeleteModal,
     ); /*delete modal for redux*/
   const deleteSchedule = () => {
-    dispatch(deleteScheduleData(params.id));
-    navigate(-1);
+    dispatch(deleteScheduleData(params.id)).then(() => {
+      navigate(-1);
+    });
   };
   const deleteEvent = () => {
     axiosClient
@@ -177,8 +179,16 @@ const ManageSchedule = (props) => {
     <div>
       <div className="d-flex justify-content-between align-items-center bg-header mb-4">
         <div>
-          <h3 className={"m-0"}>Schedule manage</h3>
-          <p> You can manage schedule date from this section</p>
+          <a onClick={() => navigate(-1)}>
+            <img
+              className="mx-2"
+              src={arrowLeft}
+              style={{ width: "15px" }}
+              alt="arrow-left"
+            />
+          </a>
+          <h3 className={"m-0 d-inline"}>Schedule manage</h3>
+          <p className="ms-4"> You can manage schedule date from this section</p>
         </div>
         <div>
           <Button onClick={toggleDeleteSchedule} className="ant-btn-danger">
@@ -237,6 +247,7 @@ const ManageSchedule = (props) => {
             // defaultView="month"
             formats={formats}
             date={currentDate}
+            onNavigate={(newDate) => setCurrentDate(newDate)}
           />
         </div>
       )}

@@ -17,11 +17,13 @@ export const SubHeader = ({
           </Title>
           <p className="my-0">{paragraph}</p>
         </Col>
-        <Col span={4}>
-          <Button disabled={isDisabled} block className="ant-btn-success" onClick={toggle}>
-            {button_title}
-          </Button>
-        </Col>
+        {button_title && (
+          <Col span={4}>
+            <Button disabled={isDisabled} block className="ant-btn-success" onClick={toggle}>
+              {button_title}
+            </Button>
+          </Col>
+        )}
       </Row>
     </div>
   );

@@ -60,7 +60,7 @@ const BranchManage = (props) => {
     setChoice("1");
   }; /*delete modal for branch*/
   const toggleDelete = (id = null) =>
-    dispatch(toggleDeleteModal(id)); /*delete modal for redux*/
+    dispatch(toggleDeleteModal(id !== null ? { open: true, id } : { open: false, id: null })); /*delete modal for redux*/
 
   const toggleSetRadio = ({ target }) => setChoice(target.value);
 
@@ -120,9 +120,10 @@ const BranchManage = (props) => {
   };
 
   const deleteBranch = () => {
-    dispatch(deleteBranchData(params.id));
-    navigate(-1);
-    toggleDeleteBranch();
+    dispatch(deleteBranchData(params.id)).then(() => {
+      toggleDeleteBranch();
+      navigate(-1);
+    });
   };
 
   const open = (username) => {
@@ -504,7 +505,7 @@ const BranchManage = (props) => {
             Cancel
           </Button>
           <Button onClick={deleteBranch} className="ant-btn-danger" htmlType="submit">
-            Save
+            Delete
           </Button>
         </div>
       </AuthModal>
