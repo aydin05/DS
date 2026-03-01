@@ -91,7 +91,6 @@ const PlaylistEditor = () => {
       // window.removeEventListener("close", handlePageClose);
       // window.removeEventListener("pagehide", handlePageClose);
       dispatch(resetState());
-      dispatch(resetModals());
     };
   }, []);
 
