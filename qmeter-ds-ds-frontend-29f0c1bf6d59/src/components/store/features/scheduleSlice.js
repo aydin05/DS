@@ -134,8 +134,9 @@ const scheduleSlice = createSlice({
       state.requestStatus = "";
     },
     toggleDeleteModal: (state, action) => {
-      state.isOpenDeleteModal = !state.isOpenDeleteModal;
-      state.deleteScheduleId = action.payload;
+      const { open, id } = action.payload ?? {};
+      state.isOpenDeleteModal = open ?? !state.isOpenDeleteModal;
+      state.deleteScheduleId = id ?? null;
       state.deleteDataLoading = false;
     },
   },

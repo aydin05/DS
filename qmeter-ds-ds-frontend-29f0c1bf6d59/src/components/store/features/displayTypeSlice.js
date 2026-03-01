@@ -77,8 +77,9 @@ const displayTypeSlice = createSlice({
       state.requestStatus = "";
     },
     toggleDeleteModal: (state, action) => {
-      state.isOpenDeleteModal = !state.isOpenDeleteModal;
-      state.deleteDisplayTypeId = action.payload;
+      const { open, id } = action.payload ?? {};
+      state.isOpenDeleteModal = open ?? !state.isOpenDeleteModal;
+      state.deleteDisplayTypeId = id ?? null;
       state.deleteDataLoading = false;
     },
   },

@@ -82,8 +82,9 @@ const roleSlice = createSlice({
       state.requestStatus = "";
     },
     toggleDeleteModal: (state, action) => {
-      state.isOpenDeleteModal = !state.isOpenDeleteModal;
-      state.deletedRoleId = action.payload;
+      const { open, id } = action.payload ?? {};
+      state.isOpenDeleteModal = open ?? !state.isOpenDeleteModal;
+      state.deletedRoleId = id ?? null;
       state.deleteDataLoading = false;
     },
   },

@@ -60,7 +60,7 @@ export const DisplayGroups = () => {
     dispatch(toggleModal());
     setRadio("1");
   };
-  const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id)), [dispatch]);
+  const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id !== null ? { open: true, id } : { open: false, id: null })), [dispatch]);
 
   const finish = useCallback((values) => {
     if (formValue.id) {

@@ -65,7 +65,7 @@ export const Users = () => {
     tab !== "1" && changeTab("1");
     dispatch(toggleModal());
   };
-  const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id)), [dispatch]);
+  const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id !== null ? { open: true, id } : { open: false, id: null })), [dispatch]);
 
   const changeCheckbox = ({ target }) => {
     if (target.checked) {

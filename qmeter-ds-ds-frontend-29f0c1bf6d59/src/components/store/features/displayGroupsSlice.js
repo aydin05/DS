@@ -69,8 +69,9 @@ const displayGroupSlice = createSlice({
       state.requestStatus = "";
     },
     toggleDeleteModal: (state, action) => {
-      state.isOpenDeleteModal = !state.isOpenDeleteModal;
-      state.deleteDisplayGroupId = action.payload;
+      const { open, id } = action.payload ?? {};
+      state.isOpenDeleteModal = open ?? !state.isOpenDeleteModal;
+      state.deleteDisplayGroupId = id ?? null;
       state.deleteDataLoading = false;
     },
   },

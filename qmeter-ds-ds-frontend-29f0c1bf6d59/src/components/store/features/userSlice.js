@@ -80,8 +80,9 @@ const userSlice = createSlice({
       state.postDataError = "";
     },
     toggleDeleteModal: (state, action) => {
-      state.isOpenDeleteModal = !state.isOpenDeleteModal;
-      state.deleteUserId = action.payload;
+      const { open, id } = action.payload ?? {};
+      state.isOpenDeleteModal = open ?? !state.isOpenDeleteModal;
+      state.deleteUserId = id ?? null;
       state.deleteDataLoading = false;
     },
   },

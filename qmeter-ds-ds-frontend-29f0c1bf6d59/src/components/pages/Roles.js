@@ -55,7 +55,7 @@ export const Roles = () => {
 
   /*component actions*/
   const toggleEdit = useCallback(() => dispatch(toggleModal()), [dispatch]);
-  const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id)), [dispatch]);
+  const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id !== null ? { open: true, id } : { open: false, id: null })), [dispatch]);
 
   const finish = useCallback((values) => {
     if (formValue.id) {

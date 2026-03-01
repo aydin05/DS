@@ -101,8 +101,9 @@ const branchSlice = createSlice({
       state.requestStatus = "";
     },
     toggleDeleteModal: (state, action) => {
-      state.isOpenDeleteModal = !state.isOpenDeleteModal;
-      state.deletedBranchId = action.payload;
+      const { open, id } = action.payload ?? {};
+      state.isOpenDeleteModal = open ?? !state.isOpenDeleteModal;
+      state.deletedBranchId = id ?? null;
       state.deleteDataLoading = false;
     },
     resetBranchState: (state) => {
