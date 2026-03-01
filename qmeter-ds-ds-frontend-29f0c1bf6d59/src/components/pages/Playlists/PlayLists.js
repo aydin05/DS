@@ -20,7 +20,6 @@ import {
   updatePlayListData,
   duplicatePlayList,
   toggleDuplicateModal,
-  resetModals,
 } from "../../store/features/playListSlice";
 import { fetchDisplayTypeData } from "../../store/features/displayTypeSlice";
 import CustomDataTable from "../../consts/CustomDataTable";
@@ -53,7 +52,6 @@ export const PlayLists = () => {
   const [mergeStatus, setMergeStatus] = useState("idle"); // idle | processing | ready | failed
   const [mergeError, setMergeError] = useState(null);
   const mergePollingRef = useRef(null);
-  const [mounted, setMounted] = useState(false);
 
   const toggleEdit = useCallback(() => dispatch(toggleModal()), [dispatch]);
   const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id !== null ? { open: true, id } : { open: false, id: null })), [dispatch]);
@@ -68,7 +66,6 @@ export const PlayLists = () => {
   const deletePlaylist = useCallback(() => dispatch(deletePlayListData(deletedPlaylistId)), [deletedPlaylistId, dispatch]);
   /*side effects*/
   useEffect(() => {
-    setMounted(true);
     dispatch(fetchDisplayTypeData({ page: 1 }));
   }, []);
   useEffect(() => {
@@ -354,7 +351,7 @@ export const PlayLists = () => {
         </Form>
       </AuthModal>
       <ConfirmDeleteModal
-        isOpen={mounted && isOpenDeleteModal}
+        isOpen={isOpenDeleteModal}
         onCancel={() => toggleDelete()}
         onConfirm={deletePlaylist}
         loading={deleteDataLoading}

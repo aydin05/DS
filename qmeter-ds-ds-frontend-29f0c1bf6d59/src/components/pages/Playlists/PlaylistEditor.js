@@ -7,7 +7,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { AuthModal } from "../../SubComponents/AuthModal";
 import {
   getPlayListDataById,
-  resetModals,
   toggleModal,
   updatePlayListData,
 } from "../../store/features/playListSlice";

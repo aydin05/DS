@@ -88,7 +88,7 @@ const saveSlideSlice = createAsyncThunk(
   },
 );
 const playListInnerSlice = createSlice({
-  name: "playListSlice",
+  name: "playListInnerSlice",
   initialState,
   reducers: {
     addItem: (state, action) => {
