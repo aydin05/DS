@@ -20,6 +20,7 @@ import {
   updatePlayListData,
   duplicatePlayList,
   toggleDuplicateModal,
+  resetModals,
 } from "../../store/features/playListSlice";
 import { fetchDisplayTypeData } from "../../store/features/displayTypeSlice";
 import CustomDataTable from "../../consts/CustomDataTable";
@@ -66,7 +67,7 @@ export const PlayLists = () => {
   const deletePlaylist = useCallback(() => dispatch(deletePlayListData(deletedPlaylistId)), [deletedPlaylistId, dispatch]);
   /*side effects*/
   useEffect(() => {
-    // dispatch(fetchPlayListData({ page: 1 }));
+    dispatch(resetModals());
     dispatch(fetchDisplayTypeData({ page: 1 }));
   }, []);
   useEffect(() => {

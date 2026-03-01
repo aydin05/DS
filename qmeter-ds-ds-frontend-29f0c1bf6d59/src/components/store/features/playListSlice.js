@@ -110,6 +110,13 @@ const playListSlice = createSlice({
         state.duplicatedPlaylist = null;
       }
     },
+    resetModals: (state) => {
+      state.isOpenDeleteModal = false;
+      state.isOpenModal = false;
+      state.isOpenDuplicateModal = false;
+      state.deletedPlaylistId = null;
+      state.deleteDataLoading = false;
+    },
   },
   extraReducers: (builder) => {
     /*fetch data build add case*/
@@ -244,4 +251,4 @@ export {
   discardPlayList,
   duplicatePlayList,
 };
-export const { toggleModal, toggleDeleteModal, toggleDuplicateModal } = playListSlice.actions;
+export const { toggleModal, toggleDeleteModal, toggleDuplicateModal, resetModals } = playListSlice.actions;
