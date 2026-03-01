@@ -67,7 +67,6 @@ export const PlayLists = () => {
   const deletePlaylist = useCallback(() => dispatch(deletePlayListData(deletedPlaylistId)), [deletedPlaylistId, dispatch]);
   /*side effects*/
   useEffect(() => {
-    dispatch(resetModals());
     dispatch(fetchDisplayTypeData({ page: 1 }));
   }, []);
   useEffect(() => {

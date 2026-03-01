@@ -7,6 +7,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { AuthModal } from "../../SubComponents/AuthModal";
 import {
   getPlayListDataById,
+  resetModals,
   toggleModal,
   updatePlayListData,
 } from "../../store/features/playListSlice";
@@ -90,6 +91,7 @@ const PlaylistEditor = () => {
       // window.removeEventListener("close", handlePageClose);
       // window.removeEventListener("pagehide", handlePageClose);
       dispatch(resetState());
+      dispatch(resetModals());
     };
   }, []);
 
