@@ -415,25 +415,26 @@ def _trigger_merge_after_publish(playlist, request):
 
     content_hash = _playlist_content_hash(playlist.id, slides_data, width, height)
 
-    # Skip if already ready or processing with same hash
-    existing = MergedVideo.objects.filter(
-        playlist=playlist, display_type=display_type, content_hash=content_hash
-    ).first()
-    if existing and existing.status in ('ready', 'processing'):
-        return
+    # Skip if already ready or processing with same hash (atomic check + create)
+    with transaction.atomic():
+        existing = MergedVideo.objects.select_for_update().filter(
+            playlist=playlist, display_type=display_type, content_hash=content_hash
+        ).first()
+        if existing and existing.status in ('ready', 'processing'):
+            return
 
-    # Collect stale record IDs — DON'T delete them yet.
-    # The old video keeps serving while the new merge runs.
-    stale_ids = list(MergedVideo.objects.filter(
-        playlist=playlist, display_type=display_type
-    ).exclude(content_hash=content_hash).values_list('id', flat=True))
+        # Collect stale record IDs — DON'T delete them yet.
+        # The old video keeps serving while the new merge runs.
+        stale_ids = list(MergedVideo.objects.filter(
+            playlist=playlist, display_type=display_type
+        ).exclude(content_hash=content_hash).values_list('id', flat=True))
 
-    merged, _ = MergedVideo.objects.update_or_create(
-        playlist=playlist,
-        display_type=display_type,
-        content_hash=content_hash,
-        defaults={'status': 'processing', 'video_file': '', 'error_message': None},
-    )
+        merged, _ = MergedVideo.objects.update_or_create(
+            playlist=playlist,
+            display_type=display_type,
+            content_hash=content_hash,
+            defaults={'status': 'processing', 'video_file': '', 'error_message': None},
+        )
 
     def _run_merge(merged_id, slides, w, h, stale_ids_to_clean):
         import os as _os

@@ -52,6 +52,7 @@ export const PlayLists = () => {
   const [mergeStatus, setMergeStatus] = useState("idle"); // idle | processing | ready | failed
   const [mergeError, setMergeError] = useState(null);
   const mergePollingRef = useRef(null);
+  const mergeTimeoutRef = useRef(null);
 
   const toggleEdit = useCallback(() => dispatch(toggleModal()), [dispatch]);
   const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id !== null ? { open: true, id } : { open: false, id: null })), [dispatch]);
@@ -109,6 +110,10 @@ export const PlayLists = () => {
       clearInterval(mergePollingRef.current);
       mergePollingRef.current = null;
     }
+    if (mergeTimeoutRef.current) {
+      clearTimeout(mergeTimeoutRef.current);
+      mergeTimeoutRef.current = null;
+    }
   }, []);
 
   const startMergePolling = useCallback((playlistId) => {
@@ -116,6 +121,13 @@ export const PlayLists = () => {
     setMergeStatus("processing");
     setMergeError(null);
     setMergeModalVisible(true);
+
+    // Stop polling after 5 minutes to avoid indefinite requests
+    mergeTimeoutRef.current = setTimeout(() => {
+      setMergeStatus("failed");
+      setMergeError("Video generation timed out. The process may still be running in the background.");
+      stopMergePolling();
+    }, 5 * 60 * 1000);
 
     mergePollingRef.current = setInterval(async () => {
       try {

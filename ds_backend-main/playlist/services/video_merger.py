@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 DOWNLOAD_TIMEOUT_SECONDS = 60
 MAX_RETRY_COUNT = 2
+MAX_SLIDES = 50
 
 MERGED_VIDEO_DIR = os.path.join(settings.MEDIA_ROOT, "merged_videos")
 
@@ -475,6 +476,11 @@ def merge_playlist_slides(playlist, slides_data, width, height, force=False):
         logger.warning("No slides to merge for playlist %s", playlist.id)
         return None
 
+    if len(slides_data) > MAX_SLIDES:
+        logger.warning("Playlist %s has %d slides, truncating to %d",
+                        playlist.id, len(slides_data), MAX_SLIDES)
+        slides_data = slides_data[:MAX_SLIDES]
+
     _ensure_dir(MERGED_VIDEO_DIR)
     content_hash = _playlist_content_hash(playlist.id, slides_data, width, height)
     output_filename = f"playlist_{playlist.id}_{content_hash}.mp4"
@@ -527,8 +533,7 @@ def merge_playlist_slides(playlist, slides_data, width, height, force=False):
             "ffmpeg", "-y",
             "-f", "concat", "-safe", "0",
             "-i", concat_list_path,
-            "-c:v", "libx264", "-preset", "fast",
-            "-pix_fmt", "yuv420p",
+            "-c", "copy",
             "-movflags", "+faststart",
             "-an",
             output_path,

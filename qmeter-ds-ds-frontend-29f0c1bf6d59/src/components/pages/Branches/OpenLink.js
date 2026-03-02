@@ -57,6 +57,7 @@ function OpenLink() {
       return localStorage.getItem(LS_VIDEO_URL_PREFIX + params.username) || null;
     } catch (e) { return null; }
   });
+  const [pendingVideoUrl, setPendingVideoUrl] = useState(null);
   const [displaySize, setDisplaySize] = useState(() => {
     try {
       const cached = localStorage.getItem(LS_DISPLAY_SIZE_PREFIX + params.username);
@@ -109,9 +110,12 @@ function OpenLink() {
         const newUrl = data.merged_video_url || null;
         if (prev === newUrl) return prev;
         if (newUrl) {
-          deviceLog("INFO", "Merged video URL updated", { url: newUrl });
+          deviceLog("INFO", "Merged video URL updated — preloading", { url: newUrl });
           // Persist video URL for offline fallback
           try { localStorage.setItem(LS_VIDEO_URL_PREFIX + params.username, newUrl); } catch (e) {}
+          // Preload the new video before swapping to avoid playback gap
+          setPendingVideoUrl(newUrl);
+          return prev; // keep old URL until preload completes
         }
         return newUrl;
       });
@@ -166,6 +170,38 @@ function OpenLink() {
     const hbInterval = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
     return () => clearInterval(hbInterval);
   }, [params.username]);
+
+  // --- Preload new video before swapping to avoid playback gap ---
+  useEffect(() => {
+    if (!pendingVideoUrl || pendingVideoUrl === mergedVideoUrl) {
+      setPendingVideoUrl(null);
+      return;
+    }
+    const preloadVideo = document.createElement("video");
+    preloadVideo.src = pendingVideoUrl;
+    preloadVideo.preload = "auto";
+    const onCanPlay = () => {
+      deviceLog("INFO", "Preloaded video ready — swapping", { url: pendingVideoUrl });
+      setMergedVideoUrl(pendingVideoUrl);
+      setPendingVideoUrl(null);
+      cleanup();
+    };
+    const onError = () => {
+      deviceLog("WARN", "Preload failed — swapping directly", { url: pendingVideoUrl });
+      setMergedVideoUrl(pendingVideoUrl);
+      setPendingVideoUrl(null);
+      cleanup();
+    };
+    const cleanup = () => {
+      preloadVideo.removeEventListener("canplaythrough", onCanPlay);
+      preloadVideo.removeEventListener("error", onError);
+      preloadVideo.src = "";
+    };
+    preloadVideo.addEventListener("canplaythrough", onCanPlay);
+    preloadVideo.addEventListener("error", onError);
+    preloadVideo.load();
+    return cleanup;
+  }, [pendingVideoUrl, mergedVideoUrl]);
 
   return (
     <div style={{ width: "100%", height: "100vh", backgroundColor: "#000", overflow: "hidden", position: "relative" }}>
