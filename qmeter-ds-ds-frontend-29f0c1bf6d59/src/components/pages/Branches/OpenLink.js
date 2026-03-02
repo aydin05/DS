@@ -180,6 +180,11 @@ function OpenLink() {
     const preloadVideo = document.createElement("video");
     preloadVideo.src = pendingVideoUrl;
     preloadVideo.preload = "auto";
+    const cleanup = () => {
+      preloadVideo.removeEventListener("canplaythrough", onCanPlay);
+      preloadVideo.removeEventListener("error", onError);
+      preloadVideo.src = "";
+    };
     const onCanPlay = () => {
       deviceLog("INFO", "Preloaded video ready — swapping", { url: pendingVideoUrl });
       setMergedVideoUrl(pendingVideoUrl);
@@ -191,11 +196,6 @@ function OpenLink() {
       setMergedVideoUrl(pendingVideoUrl);
       setPendingVideoUrl(null);
       cleanup();
-    };
-    const cleanup = () => {
-      preloadVideo.removeEventListener("canplaythrough", onCanPlay);
-      preloadVideo.removeEventListener("error", onError);
-      preloadVideo.src = "";
     };
     preloadVideo.addEventListener("canplaythrough", onCanPlay);
     preloadVideo.addEventListener("error", onError);

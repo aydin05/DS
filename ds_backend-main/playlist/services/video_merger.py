@@ -533,6 +533,8 @@ def merge_playlist_slides(playlist, slides_data, width, height, force=False):
             "ffmpeg", "-y",
             "-f", "concat", "-safe", "0",
             "-i", concat_list_path,
+            # Stream copy is safe because all segments share the same
+            # codec (libx264), pixel format (yuv420p), resolution, and fps (30).
             "-c", "copy",
             "-movflags", "+faststart",
             "-an",
