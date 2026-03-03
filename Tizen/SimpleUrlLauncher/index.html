@@ -1,333 +1,186 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
     <title>Digital Signage</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background: #0f172a;
-            color: #e2e8f0;
-        }
-
-        /* ── Settings screen ── */
-        #settings {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100%;
-            padding: 40px;
-        }
-        #settings h1 {
-            font-size: 48px;
-            font-weight: 700;
-            margin-bottom: 8px;
-            color: #f8fafc;
-        }
-        #settings p.subtitle {
-            font-size: 20px;
-            color: #94a3b8;
-            margin-bottom: 48px;
-        }
-        .form-group {
-            width: 100%;
-            max-width: 700px;
-            margin-bottom: 24px;
-        }
-        .form-group label {
-            display: block;
-            font-size: 16px;
-            font-weight: 600;
-            color: #94a3b8;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-        .form-group input {
-            width: 100%;
-            padding: 16px 20px;
-            font-size: 22px;
-            border: 2px solid #334155;
-            border-radius: 12px;
-            background: #1e293b;
-            color: #f8fafc;
-            outline: none;
-            transition: border-color 0.2s;
-        }
-        .form-group input:focus {
-            border-color: #3b82f6;
-        }
-        .btn-row {
-            display: flex;
-            gap: 16px;
-            width: 100%;
-            max-width: 700px;
-            margin-top: 8px;
-        }
-        button {
-            flex: 1;
-            padding: 16px 32px;
-            font-size: 22px;
-            font-weight: 600;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-            outline: none;
-        }
-        button:focus {
-            box-shadow: 0 0 0 3px rgba(59,130,246,0.5);
-        }
-        .btn-connect {
-            background: #3b82f6;
-            color: #fff;
-        }
-        .btn-connect:hover, .btn-connect:focus {
-            background: #2563eb;
-        }
-        .btn-clear {
-            background: #334155;
-            color: #cbd5e1;
-            flex: 0.4;
-        }
-        .btn-clear:hover, .btn-clear:focus {
-            background: #475569;
-        }
-        .saved-urls {
-            width: 100%;
-            max-width: 700px;
-            margin-top: 32px;
-        }
-        .saved-urls h3 {
-            font-size: 16px;
-            font-weight: 600;
-            color: #64748b;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 12px;
-        }
-        .saved-url-item {
-            display: flex;
-            align-items: center;
-            padding: 12px 16px;
-            background: #1e293b;
-            border-radius: 8px;
-            margin-bottom: 8px;
-            cursor: pointer;
-            border: 2px solid transparent;
-            transition: border-color 0.2s, background 0.2s;
-        }
-        .saved-url-item:hover, .saved-url-item:focus {
-            border-color: #3b82f6;
-            background: #253349;
-        }
-        .saved-url-item .url-text {
-            flex: 1;
-            font-size: 18px;
-            color: #e2e8f0;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        .saved-url-item .remove-btn {
-            font-size: 14px;
-            color: #ef4444;
-            background: none;
-            border: none;
-            padding: 4px 8px;
-            cursor: pointer;
-            flex: 0;
-            min-width: auto;
-        }
-        .status-bar {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            font-size: 14px;
-            color: #64748b;
-        }
-
-        /* ── Fullscreen iframe ── */
-        #viewer {
-            display: none;
-            width: 100%;
-            height: 100%;
-        }
-        #viewer iframe {
-            width: 100%;
-            height: 100%;
-            border: none;
-        }
-    </style>
+    <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
 </head>
-<body>
-
-    <!-- Settings screen -->
-    <div id="settings">
-        <h1>Digital Signage</h1>
-        <p class="subtitle">Enter the URL to display on this screen</p>
-
-        <div class="form-group">
-            <label>URL</label>
-            <input type="url" id="url-input" placeholder="https://example.com/open-link/display-name" autofocus />
+<body style="background:#0f172a; margin:0; padding:0; font-family:Arial,sans-serif;">
+    <div id="settings" style="text-align:center; padding-top:140px;">
+        <div style="margin-bottom:32px;">
+            <svg width="260" height="57" viewBox="0 0 200 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M60.543 29.8996C60.543 28.3664 61.7821 27.125 63.313 27.125C64.8462 27.125 66.0831 28.3641 66.0831 29.8996V43.7634H60.5519V29.8996H60.543Z" fill="#f8fafc"/>
+                <path d="M77.1481 29.9196C77.1481 22.2671 70.9524 16.0625 63.3112 16.0625C55.6699 16.0625 49.4766 22.2671 49.4766 29.9196V43.7677H55.0077V29.9196C55.0077 25.3267 58.7251 21.6049 63.3112 21.6049C67.8973 21.6049 71.6147 25.3267 71.6147 29.9196V43.7677H77.1458L77.1481 29.9196Z" fill="#f8fafc"/>
+                <path d="M96.6041 32.6819C95.0731 32.6819 93.834 31.4428 93.834 29.9074C93.834 28.3742 95.0731 27.1328 96.6041 27.1328H110.448V32.6752H96.6041V32.6819Z" fill="#f8fafc"/>
+                <path d="M96.6198 16.0547C88.9785 16.0547 82.7852 22.2593 82.7852 29.9118C82.7852 37.5642 88.9808 43.7688 96.6198 43.7688H110.448V38.2287H96.6288C92.0427 38.2287 88.3253 34.5068 88.3253 29.914C88.3253 25.3212 92.0427 21.5993 96.6288 21.5993H110.448V16.0547H96.6198Z" fill="#f8fafc"/>
+                <path d="M154.918 32.6663C153.388 32.6663 152.148 31.4249 152.148 29.8917C152.148 28.3586 153.388 27.1172 154.918 27.1172H168.762V32.6573L154.918 32.6663Z" fill="#f8fafc"/>
+                <path d="M154.934 16.0469C147.293 16.0469 141.1 22.2515 141.1 29.9017C141.1 37.5542 147.293 43.7588 154.934 43.7588H168.76V38.2186H154.934C150.348 38.2186 146.633 34.4968 146.633 29.9039C146.633 25.3111 150.35 21.5893 154.934 21.5893H168.76V16.0469H154.934Z" fill="#f8fafc"/>
+                <path d="M195.154 31.9243C197.471 34.5147 198.925 38.3758 198.894 43.7767H193.277C193.293 37.5048 191.176 34.0052 187.185 32.9501C186.406 32.7436 185.629 32.6808 184.837 32.6808H183.043L174.293 32.6538V27.1249L191.706 27.08C193.23 27.08 194.469 25.8835 194.469 24.3593C194.469 23.2504 193.816 22.2851 192.869 21.8474H192.86C192.505 21.6858 192.115 21.5915 191.706 21.5915H174.291V16.0469H191.782C196.324 16.0469 200.001 19.8069 200.001 24.3548C200.003 27.6996 198.018 30.6223 195.154 31.9243Z" fill="#f8fafc"/>
+                <path d="M141.045 16.0469V21.587H129.98V43.7655H124.44V21.587H113.373V16.0469H141.045Z" fill="#f8fafc"/>
+                <path d="M43.926 21.8822C43.926 27.1103 42.0853 31.9097 39.0166 35.6742L35.0344 31.6605C37.0906 28.9398 38.3073 25.5524 38.3073 21.8822C38.3073 12.8896 30.9893 5.60074 21.963 5.60074C12.9367 5.60074 5.6187 12.8896 5.6187 21.8822C5.6187 30.3944 12.1735 37.3802 20.5263 38.103L26.1495 43.7464C26.1495 43.7464 22.2705 43.7666 21.963 43.7666C9.83441 43.7666 0 33.9681 0 21.8822C0 9.7985 9.83441 0 21.963 0C34.0916 0 43.926 9.7985 43.926 21.8822Z" fill="#f8fafc"/>
+                <path d="M40.0913 43.7468H33.1078L20.3125 30.8438H27.2871L27.3117 30.8684L40.0913 43.7468Z" fill="#f8fafc"/>
+            </svg>
         </div>
-
-        <div class="btn-row">
-            <button class="btn-connect" id="btn-connect" onclick="connect()">Connect</button>
-            <button class="btn-clear" id="btn-clear" onclick="clearSaved()">Clear All</button>
+        <h1 style="color:#f8fafc; font-size:48px; margin-bottom:16px;">Digital Signage</h1>
+        <p style="color:#94a3b8; font-size:20px; margin-bottom:40px;">Enter the URL to display on this screen</p>
+        <div style="margin:0 auto; max-width:700px; padding:0 20px;">
+            <input id="url-input" type="text" value="http://aydin.technolink.az/tv-player.html?username=portrait"
+                style="width:100%; padding:16px; font-size:22px; border:2px solid #334155; border-radius:12px; background:#1e293b; color:#f8fafc; outline:none; margin-bottom:16px;" />
+            <br/>
+            <button id="btn-connect" style="padding:16px 48px; font-size:22px; font-weight:600; border:none; border-radius:12px; background:#3b82f6; color:#fff; cursor:pointer; outline:none;">Connect</button>
         </div>
-
-        <div class="saved-urls" id="saved-urls-section" style="display:none;">
-            <h3>Recent URLs</h3>
-            <div id="saved-urls-list"></div>
-        </div>
-
-        <div class="status-bar">Press <b>Back</b> on remote to return to this screen</div>
+        <p id="status" style="color:#94a3b8; font-size:16px; margin-top:24px;">Press DOWN to select Connect, ENTER to activate. Press 0 to sign out.</p>
     </div>
 
-    <!-- Fullscreen viewer -->
-    <div id="viewer">
-        <iframe id="ds-frame" allowfullscreen allow="autoplay; fullscreen"></iframe>
-    </div>
+    <!-- Iframe for tv-player -->
+    <iframe id="ds-frame" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; border:none; z-index:1;" allowfullscreen="true"></iframe>
+    <!-- Transparent overlay to capture remote key events (sits on top of iframe) -->
+    <div id="key-overlay" tabindex="0" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:2; background:transparent;"></div>
 
     <script>
-        var STORAGE_KEY = 'ds_saved_urls';
-        var LAST_URL_KEY = 'ds_last_url';
+        var urlInput = document.getElementById('url-input');
+        var btnConnect = document.getElementById('btn-connect');
+        var statusEl = document.getElementById('status');
+        var dsFrame = document.getElementById('ds-frame');
+        var keyOverlay = document.getElementById('key-overlay');
+        var isPlaying = false;
 
-        function getSavedUrls() {
-            try {
-                return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-            } catch(e) { return []; }
-        }
-
-        function saveSavedUrls(urls) {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(urls));
-        }
-
-        function addToSaved(url) {
-            var urls = getSavedUrls();
-            // Remove duplicate then prepend
-            urls = urls.filter(function(u) { return u !== url; });
-            urls.unshift(url);
-            // Keep max 10
-            if (urls.length > 10) urls = urls.slice(0, 10);
-            saveSavedUrls(urls);
-        }
-
-        function renderSavedUrls() {
-            var urls = getSavedUrls();
-            var section = document.getElementById('saved-urls-section');
-            var list = document.getElementById('saved-urls-list');
-            if (!urls.length) {
-                section.style.display = 'none';
-                return;
+        // --- Register Samsung remote keys ---
+        try {
+            if (typeof tizen !== 'undefined' && tizen.tvinputdevice) {
+                var keys = ["0","1","2","3","Exit","Return"];
+                for (var k = 0; k < keys.length; k++) {
+                    try { tizen.tvinputdevice.registerKey(keys[k]); } catch(e) {}
+                }
             }
-            section.style.display = 'block';
-            list.innerHTML = '';
-            urls.forEach(function(url, idx) {
-                var item = document.createElement('div');
-                item.className = 'saved-url-item';
-                item.tabIndex = 0;
-                item.innerHTML =
-                    '<span class="url-text">' + url.replace(/</g, '&lt;') + '</span>' +
-                    '<button class="remove-btn" data-idx="' + idx + '">✕</button>';
-                item.addEventListener('click', function(e) {
-                    if (e.target.classList.contains('remove-btn')) {
-                        var urls2 = getSavedUrls();
-                        urls2.splice(idx, 1);
-                        saveSavedUrls(urls2);
-                        renderSavedUrls();
-                        return;
-                    }
-                    document.getElementById('url-input').value = url;
-                    connect();
-                });
-                item.addEventListener('keydown', function(e) {
-                    if (e.keyCode === 13) { // Enter
-                        document.getElementById('url-input').value = url;
-                        connect();
-                    }
-                });
-                list.appendChild(item);
-            });
-        }
+        } catch(e) {}
 
-        function connect() {
-            var url = document.getElementById('url-input').value.trim();
-            if (!url) return;
-            // Auto-prefix https if missing
-            if (url.indexOf('http') !== 0) url = 'https://' + url;
-            addToSaved(url);
-            localStorage.setItem(LAST_URL_KEY, url);
-
-            document.getElementById('settings').style.display = 'none';
-            document.getElementById('viewer').style.display = 'block';
-            document.getElementById('ds-frame').src = url;
+        function doConnect() {
+            try {
+                var url = urlInput.value.trim();
+                if (!url) return;
+                if (url.indexOf('http') !== 0) url = 'http://' + url;
+                statusEl.innerText = 'Loading: ' + url;
+                localStorage.setItem('ds_last_url', url);
+                document.getElementById('settings').style.display = 'none';
+                dsFrame.style.display = 'block';
+                keyOverlay.style.display = 'block';
+                dsFrame.src = url;
+                // Focus the overlay so key events come to our document
+                keyOverlay.focus();
+            } catch(e) {
+                statusEl.innerText = 'Error: ' + e.message;
+            }
+            isPlaying = true;
         }
 
         function showSettings() {
-            document.getElementById('ds-frame').src = '';
-            document.getElementById('viewer').style.display = 'none';
-            document.getElementById('settings').style.display = 'flex';
-            renderSavedUrls();
-            document.getElementById('url-input').focus();
+            isPlaying = false;
+            dsFrame.src = 'about:blank';
+            dsFrame.style.display = 'none';
+            keyOverlay.style.display = 'none';
+            document.getElementById('settings').style.display = 'block';
+            localStorage.removeItem('ds_last_url');
+            focusedElement = 'input';
+            highlightInput(true);
+            highlightButton(false);
+            urlInput.focus();
+            statusEl.innerText = 'Signed out. Press DOWN to select Connect, ENTER to activate.';
         }
 
-        function clearSaved() {
-            localStorage.removeItem(STORAGE_KEY);
-            localStorage.removeItem(LAST_URL_KEY);
-            document.getElementById('url-input').value = '';
-            renderSavedUrls();
+        function highlightButton(on) {
+            if (on) {
+                btnConnect.style.background = '#2563eb';
+                btnConnect.style.boxShadow = '0 0 0 3px #60a5fa';
+            } else {
+                btnConnect.style.background = '#3b82f6';
+                btnConnect.style.boxShadow = 'none';
+            }
         }
 
-        // Register Tizen remote keys
-        if (typeof tizen !== 'undefined') {
-            try {
-                tizen.tvinputdevice.registerKey("Exit");
-                tizen.tvinputdevice.registerKey("Return");
-            } catch(e) {}
+        function highlightInput(on) {
+            if (on) {
+                urlInput.style.borderColor = '#60a5fa';
+                urlInput.style.boxShadow = '0 0 0 3px rgba(96,165,250,0.3)';
+            } else {
+                urlInput.style.borderColor = '#334155';
+                urlInput.style.boxShadow = 'none';
+            }
         }
+
+        // D-pad navigation
+        var focusedElement = 'input';
 
         document.addEventListener('keydown', function(e) {
-            // Back / Return key → go back to settings
-            if (e.keyCode === 10009) { // Exit
-                if (document.getElementById('viewer').style.display === 'block') {
-                    showSettings();
-                } else {
-                    if (typeof tizen !== 'undefined') {
-                        tizen.application.getCurrentApplication().exit();
-                    }
-                }
+            var key = e.keyCode;
+
+            // "0" on Samsung remote = keyCode 48
+            if (key === 48) {
+                e.preventDefault();
+                if (isPlaying) { showSettings(); }
+                return;
             }
-            if (e.keyCode === 10010 || e.keyCode === 8) { // Return / Backspace
-                if (document.getElementById('viewer').style.display === 'block') {
+
+            // EXIT key (Samsung remote)
+            if (key === 10009) {
+                if (isPlaying) { showSettings(); }
+                else { try { tizen.application.getCurrentApplication().exit(); } catch(ex) {} }
+                return;
+            }
+
+            // RETURN / BACK key
+            if (key === 10010 || key === 8) {
+                if (isPlaying) { e.preventDefault(); showSettings(); }
+                return;
+            }
+
+            // Settings screen navigation (only when not playing)
+            if (!isPlaying) {
+                if (key === 40 && focusedElement === 'input') {
                     e.preventDefault();
-                    showSettings();
+                    focusedElement = 'button';
+                    btnConnect.focus();
+                    highlightInput(false);
+                    highlightButton(true);
+                    statusEl.innerText = 'Press ENTER to connect';
+                    return;
+                }
+                if (key === 38 && focusedElement === 'button') {
+                    e.preventDefault();
+                    focusedElement = 'input';
+                    urlInput.focus();
+                    highlightButton(false);
+                    highlightInput(true);
+                    statusEl.innerText = 'Press DOWN to select Connect';
+                    return;
+                }
+                if (key === 13) {
+                    e.preventDefault();
+                    doConnect();
+                    return;
                 }
             }
         });
 
-        // Allow Enter in input to connect
-        document.getElementById('url-input').addEventListener('keydown', function(e) {
-            if (e.keyCode === 13) connect();
-        });
-
-        // On load: auto-connect if there's a saved URL
-        (function() {
-            renderSavedUrls();
-            var lastUrl = localStorage.getItem(LAST_URL_KEY);
-            if (lastUrl) {
-                document.getElementById('url-input').value = lastUrl;
-                connect();
+        // Keep overlay focused so keys always come to us
+        setInterval(function() {
+            if (isPlaying && keyOverlay) {
+                try { keyOverlay.focus(); } catch(e) {}
             }
-        })();
+        }, 500);
+
+        // Initial state
+        highlightInput(true);
+        urlInput.focus();
+
+        // Auto-connect if URL was previously saved
+        try {
+            var lastUrl = localStorage.getItem('ds_last_url');
+            if (lastUrl) {
+                urlInput.value = lastUrl;
+                doConnect();
+            }
+        } catch(e) {}
     </script>
 </body>
 </html>

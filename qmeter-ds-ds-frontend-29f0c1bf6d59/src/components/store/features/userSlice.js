@@ -140,6 +140,10 @@ const userSlice = createSlice({
       state.postDataLoading = false;
       state.requestStatus = "update";
       state.postDataError = "";
+      state.formValue = action.payload;
+      state.data = state.data.map((item) =>
+        item.id === action.payload.id ? { ...item, ...action.payload } : item
+      );
     });
     builder.addCase(updateUserData.rejected, (state, action) => {
       state.postDataError = action.payload;

@@ -158,6 +158,10 @@ const roleSlice = createSlice({
       state.postDataLoading = false;
       state.requestStatus = "update";
       state.isOpenModal = false;
+      state.formValue = action.payload;
+      state.data = state.data.map((item) =>
+        item.id === action.payload.id ? { ...item, ...action.payload } : item
+      );
     });
     builder.addCase(updateRoleData.rejected, (state) => {
       state.postDataLoading = false;

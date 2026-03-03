@@ -67,6 +67,7 @@ export const PlayLists = () => {
   /*side effects*/
   useEffect(() => {
     dispatch(fetchDisplayTypeData({ page: 1 }));
+    dispatch(fetchPlayListData({ page: current_page || 1 }));
   }, []);
   useEffect(() => {
     if (requestStatus) {
@@ -258,7 +259,7 @@ export const PlayLists = () => {
         </Dropdown>
       ),
     },
-  ], [dispatch, navigate, toggleDelete, publish, discard, handleDuplicate]);
+  ], [dispatch, navigate, toggleDelete, publish, discard, handleDuplicate, displayTypeSlice.data, current_page]);
   return (
     <div>
       <SubHeader

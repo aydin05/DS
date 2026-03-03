@@ -40,6 +40,7 @@ const PlaylistEditor = () => {
     width: 0,
     height: 0,
   });
+  const isRenameRef = React.useRef(false);
   const toggleEdit = () => dispatch(toggleModal("isPlaylist"));
 
   const changeDisplay = (e) => {
@@ -60,6 +61,7 @@ const PlaylistEditor = () => {
     values.id = params.id;
     values["description"] = playListSlice.formValue.description;
     values["default_display_type"] = display_id || playListSlice.formValue.default_display_type.id;
+    isRenameRef.current = true;
     dispatch(updatePlayListData(values));
   };
 
@@ -105,7 +107,10 @@ const PlaylistEditor = () => {
 
   useEffect(() => {
     if (playListSlice.requestStatus === "update") {
-      dispatch(getPlayListDataById({ id: params.id, condition: true }));
+      if (isRenameRef.current) {
+        isRenameRef.current = false;
+        dispatch(getPlayListDataById({ id: params.id, condition: true }));
+      }
     }
   }, [playListSlice.requestStatus]);
 

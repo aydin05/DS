@@ -10,6 +10,7 @@ export default defineConfig({
   },
   build: {
     outDir: 'build',
+    target: 'es2015',
     commonjsOptions: {
       include: [/custom-ckeditor5/, /node_modules/],
       transformMixedEsModules: true,

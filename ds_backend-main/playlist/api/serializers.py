@@ -69,7 +69,7 @@ class PlaylistSerializer(ModelSerializer):
         instance.company = self.context['request'].user.company
         instance.name = validated_data.get('name', instance.name)
         instance.description = validated_data.get('description', instance.description)
-        display_type_id = validated_data.pop('default_display_type', None)
+        display_type_id = self.initial_data.get('default_display_type', None)
         if display_type_id is not None:
             if isinstance(display_type_id, DisplayType):
                 instance.default_display_type = display_type_id

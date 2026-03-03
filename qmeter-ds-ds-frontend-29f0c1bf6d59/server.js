@@ -21,7 +21,18 @@ app.use(function (req, res, next) {
   allowCrossDomain(req, res, next);
 });
 
-app.use(helmet.frameguard());
-app.use(express.static(rootPath));
-app.get("*", (req, res) => res.sendFile(path.resolve("build", "index.html")));
+// frameguard disabled — frontend is embedded in iframe by Tizen display app
+
+// Hashed assets → cache forever (filename changes on rebuild)
+app.use("/assets", express.static(path.join(rootPath, "assets"), {
+  maxAge: "1y",
+  immutable: true,
+}));
+
+// Everything else (including index.html) → no cache
+app.use(express.static(rootPath, { maxAge: 0 }));
+app.get("*", (req, res) => {
+  res.set("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.sendFile(path.resolve("build", "index.html"));
+});
 app.listen(port);

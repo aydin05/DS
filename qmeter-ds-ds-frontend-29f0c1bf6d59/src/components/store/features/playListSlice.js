@@ -179,6 +179,9 @@ const playListSlice = createSlice({
       state.postDataLoading = false;
       state.requestStatus = "update";
       state.isOpenModal = false;
+      state.data = state.data.map((item) =>
+        item.id === action.payload.id ? { ...item, ...action.payload } : item
+      );
     });
     builder.addCase(updatePlayListData.rejected, (state, action) => {
       state.postDataLoading = false;

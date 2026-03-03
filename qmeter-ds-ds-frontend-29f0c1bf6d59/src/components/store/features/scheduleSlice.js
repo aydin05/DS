@@ -199,6 +199,10 @@ const scheduleSlice = createSlice({
       state.postDataLoading = false;
       state.requestStatus = "update";
       state.isOpenModal = false;
+      state.formValue = action.payload;
+      state.data = state.data.map((item) =>
+        item.id === action.payload.id ? { ...item, ...action.payload } : item
+      );
     });
     builder.addCase(updateScheduleData.rejected, (state) => {
       state.postDataLoading = false;

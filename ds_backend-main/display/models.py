@@ -30,6 +30,7 @@ class Display(BaseModel):
     HEARTBEAT_SOURCE_CHOICES = [
         ('tizen', 'Tizen App'),
         ('openlink', 'Open Link (Browser)'),
+        ('tv-player', 'TV Player (Vanilla)'),
         ('unknown', 'Unknown'),
     ]
 

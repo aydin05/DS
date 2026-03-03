@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Digital Signage Player</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+        #player-video {
+            width: 100%;
+            height: 100%;
+            display: block;
+            object-fit: contain;
+            background: #000;
+        }
+        #status-dot {
+            display: none;
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #ef4444;
+            z-index: 10;
+        }
+        #waiting-msg {
+            color: #fff;
+            text-align: center;
+            padding-top: 20%;
+            font-size: 18px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="status-dot"></div>
+    <video id="player-video" autoplay muted playsinline style="display:none;"></video>
+    <div id="waiting-msg">Loading...</div>
+
+    <script>
+        // --- Configuration ---
+        var API_BASE = '/api/v1/';
+        var FETCH_INTERVAL = 30000;
+        var HEARTBEAT_INTERVAL = 30000;
+        // Detect source: Tizen TV vs regular browser (open-link on PC)
+        var HEARTBEAT_SOURCE = (navigator.userAgent.indexOf('Tizen') !== -1) ? 'tizen' : 'openlink';
+        // Detect Tizen 4 (single video decoder, loop attribute broken)
+        var IS_TIZEN4 = (navigator.userAgent.indexOf('Tizen 4') !== -1);
+
+        // --- Get username from URL ---
+        var params = {};
+        var search = window.location.search.substring(1);
+        if (search) {
+            var parts = search.split('&');
+            for (var i = 0; i < parts.length; i++) {
+                var kv = parts[i].split('=');
+                params[decodeURIComponent(kv[0])] = decodeURIComponent(kv[1] || '');
+            }
+        }
+        // Also support path-based: /tv-player.html/portrait or hash: #portrait
+        var username = params.username || window.location.hash.substring(1) || '';
+        if (!username) {
+            document.getElementById('waiting-msg').innerText = 'Error: No username specified. Use ?username=YOUR_DISPLAY_NAME';
+        }
+
+        // --- State ---
+        var currentVideoUrl = null;
+        var apiReachable = true;
+        var fetchIntervalId = null;
+        var heartbeatIntervalId = null;
+
+        // --- Cached video URL (offline fallback) ---
+        var LS_KEY = 'ds_tv_video_' + username;
+        var LS_SIZE_KEY = 'ds_tv_size_' + username;
+        try {
+            currentVideoUrl = localStorage.getItem(LS_KEY) || null;
+            if (currentVideoUrl) {
+                showVideo(currentVideoUrl);
+            }
+        } catch(e) {}
+
+        // --- Fetch display data ---
+        function fetchData() {
+            if (!username) return;
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', API_BASE + 'display/display-detail?username=' + encodeURIComponent(username), true);
+            xhr.timeout = 15000;
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    try {
+                        var data = JSON.parse(xhr.responseText);
+                        apiReachable = true;
+                        updateStatusDot();
+
+                        var newUrl = data.merged_video_url || null;
+                        if (newUrl && newUrl !== currentVideoUrl) {
+                            currentVideoUrl = newUrl;
+                            try { localStorage.setItem(LS_KEY, newUrl); } catch(e) {}
+                            showVideo(newUrl);
+                        } else if (!newUrl && !currentVideoUrl) {
+                            document.getElementById('waiting-msg').style.display = 'block';
+                            document.getElementById('waiting-msg').innerText = 'Waiting for video content...';
+                            document.getElementById('player-video').style.display = 'none';
+                        }
+
+                        // Cache display size
+                        if (data.general) {
+                            try {
+                                localStorage.setItem(LS_SIZE_KEY, JSON.stringify({
+                                    width: data.general.width,
+                                    height: data.general.height
+                                }));
+                            } catch(e) {}
+                            applyDisplaySize(data.general.width, data.general.height);
+                        }
+                    } catch(e) {
+                        console.error('Parse error:', e);
+                    }
+                } else {
+                    console.error('API error:', xhr.status, xhr.statusText);
+                    apiReachable = false;
+                    updateStatusDot();
+                }
+            };
+            xhr.onerror = function() {
+                apiReachable = false;
+                updateStatusDot();
+            };
+            xhr.ontimeout = function() {
+                apiReachable = false;
+                updateStatusDot();
+            };
+            xhr.send();
+        }
+
+        // --- Tizen 4: recreate video element to loop ---
+        function recreateVideo(url) {
+            var old = document.getElementById('player-video');
+            var parent = old ? old.parentNode : document.body;
+            if (old) {
+                try { old.pause(); old.src = ''; } catch(e) {}
+                parent.removeChild(old);
+            }
+            var v = document.createElement('video');
+            v.id = 'player-video';
+            v.autoplay = true;
+            v.muted = true;
+            v.setAttribute('playsinline', '');
+            v.style.cssText = 'width:100%;height:100%;display:block;object-fit:contain;background:#000;';
+            v.src = url;
+            v.addEventListener('ended', function() { recreateVideo(url); });
+            parent.appendChild(v);
+            v.load();
+            try { v.play(); } catch(e) {}
+        }
+
+        function showVideo(url) {
+            document.getElementById('waiting-msg').style.display = 'none';
+            if (IS_TIZEN4) {
+                // Tizen 4: recreate element each time (loop attr broken)
+                recreateVideo(url);
+            } else {
+                // Tizen 7 / browsers: use native loop attribute
+                var video = document.getElementById('player-video');
+                video.loop = true;
+                video.style.display = 'block';
+                if (video.src !== url) {
+                    video.src = url;
+                    video.load();
+                    try { video.play(); } catch(e) {}
+                }
+            }
+        }
+
+        // Tizen 4 safety net: if video stalls for 3s, recreate
+        var _lastTime = -1;
+        var _stallCount = 0;
+        if (IS_TIZEN4) {
+            setInterval(function() {
+                var v = document.getElementById('player-video');
+                if (!v || !currentVideoUrl) return;
+                if (!v.duration || isNaN(v.duration)) return;
+                if (v.currentTime === _lastTime) {
+                    _stallCount++;
+                    if (_stallCount >= 3) {
+                        recreateVideo(currentVideoUrl);
+                        _stallCount = 0;
+                        _lastTime = -1;
+                    }
+                } else {
+                    _stallCount = 0;
+                }
+                _lastTime = v.currentTime;
+            }, 1000);
+        }
+
+        function applyDisplaySize(w, h) {
+            if (w && h) {
+                var video = document.getElementById('player-video');
+                video.style.width = w + 'px';
+                video.style.height = h + 'px';
+                video.style.margin = '0 auto';
+            }
+        }
+
+        function updateStatusDot() {
+            var dot = document.getElementById('status-dot');
+            dot.style.display = (!apiReachable || !navigator.onLine) ? 'block' : 'none';
+        }
+
+        // --- Heartbeat ---
+        function sendHeartbeat() {
+            if (!username) return;
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', API_BASE + 'core/heartbeat/', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.send(JSON.stringify({ username: username, source: HEARTBEAT_SOURCE }));
+        }
+
+        // --- Sign out (press 0 on remote) ---
+        function signOut() {
+            // Stop all intervals so heartbeat stops → device becomes inactive
+            if (fetchIntervalId) clearInterval(fetchIntervalId);
+            if (heartbeatIntervalId) clearInterval(heartbeatIntervalId);
+
+            // Stop video
+            try {
+                var video = document.getElementById('player-video');
+                video.pause();
+                video.src = '';
+            } catch(e) {}
+
+            // Clear saved URL so widget shows settings instead of auto-connecting
+            try { localStorage.removeItem('ds_last_url'); } catch(e) {}
+
+            // Navigate back to widget settings page
+            history.back();
+        }
+
+        // Listen for "0" key on remote (keyCode 48)
+        document.addEventListener('keydown', function(e) {
+            if (e.keyCode === 48) {
+                e.preventDefault();
+                signOut();
+            }
+        });
+
+        // --- Online/Offline detection ---
+        window.addEventListener('online', function() {
+            updateStatusDot();
+            fetchData();
+        });
+        window.addEventListener('offline', function() {
+            updateStatusDot();
+        });
+
+        // --- Start ---
+        if (username) {
+            // Apply cached display size
+            try {
+                var cachedSize = JSON.parse(localStorage.getItem(LS_SIZE_KEY));
+                if (cachedSize) applyDisplaySize(cachedSize.width, cachedSize.height);
+            } catch(e) {}
+
+            // Initial fetch
+            fetchData();
+            sendHeartbeat();
+
+            // Periodic refresh
+            fetchIntervalId = setInterval(fetchData, FETCH_INTERVAL);
+            heartbeatIntervalId = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+        }
+    </script>
+</body>
+</html>

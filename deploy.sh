@@ -271,10 +271,8 @@ if [ "$DEPLOY_TIZEN" = true ]; then
 SSSP_EOF
     log "Generated sssp_config.xml (widgetname=${WGT_NAME}, size=${WGT_SIZE}, ver=${SSSP_VER})"
 
-    # Create placeholder index.html if it doesn't exist
-    if [ ! -f "${SSSP_DIR}/index.html" ]; then
-        echo "Digital Signage App" > "${SSSP_DIR}/index.html"
-    fi
+    # SSSP background page (calls sendReadyEvent so TV proceeds to install .wgt)
+    log "Using SSSP background page from ${SSSP_DIR}/index.html"
 
     # Create remote directory
     ssh ${SSH_TARGET} "mkdir -p ${REMOTE_TIZEN_APP}"

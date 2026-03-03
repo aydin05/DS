@@ -3,11 +3,15 @@
     <tizen:application id="rBmFMGzx5u.SimpleUrlLauncher" package="rBmFMGzx5u" required_version="2.3"/>
     <content src="index.html"/>
     <feature name="http://tizen.org/feature/screen.size.all"/>
-    <tizen:privilege name="http://tizen.org/privilege/internet"/>
-    <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
+    <access origin="*" subdomains="true"/>
     <icon src="icon.png"/>
     <name>SimpleUrlLauncher</name>
     <tizen:profile name="tv-samsung"/>
+    <tizen:privilege name="http://tizen.org/privilege/internet"/>
+    <tizen:privilege name="http://tizen.org/privilege/tv.inputdevice"/>
+    <tizen:privilege name="http://tizen.org/privilege/network.connection"/>
+    <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
     <tizen:metadata key="http://samsung.com/tv/metadata/use.network" value="true"/>
-    <access origin="*" subdomains="true"/>
+    <tizen:metadata key="http://samsung.com/tv/metadata/prelaunch.support" value="true"/>
+    <tizen:setting screen-orientation="auto-rotation" context-menu="enable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
 </widget>
