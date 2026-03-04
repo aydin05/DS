@@ -30,7 +30,23 @@ app.use("/assets", express.static(path.join(rootPath, "assets"), {
 }));
 
 // Everything else (including index.html) → no cache
-app.use(express.static(rootPath, { maxAge: 0 }));
+app.use(express.static(rootPath, {
+  maxAge: 0,
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.html')) {
+      res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.set('Pragma', 'no-cache');
+      res.set('Expires', '0');
+    }
+  },
+}));
+
+// Missing assets after rebuild → 404 (not index.html)
+app.all("/assets/*", (req, res) => {
+  res.status(404).end();
+});
+
+// SPA fallback — all other routes get index.html
 app.get("*", (req, res) => {
   res.set("Cache-Control", "no-cache, no-store, must-revalidate");
   res.sendFile(path.resolve("build", "index.html"));

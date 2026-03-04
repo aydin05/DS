@@ -1,19 +1,36 @@
 import React, { lazy, Suspense } from "react";
 import { Spin } from "antd";
 
-const DisplayTypes = lazy(() => import("../pages/DisplayTypes").then((m) => ({ default: m.DisplayTypes })));
-const DisplayGroups = lazy(() => import("../pages/DisplayGroups").then((m) => ({ default: m.DisplayGroups })));
-const Branches = lazy(() => import("../pages/Branches/Branches").then((m) => ({ default: m.Branches })));
-const BranchManage = lazy(() => import("../pages/Branches/BranchManage"));
-const Schedules = lazy(() => import("../pages/Schedule/Schedules").then((m) => ({ default: m.Schedules })));
-const ManageSchedule = lazy(() => import("../pages/Schedule/ManageSchedule"));
-const DeviceStatus = lazy(() => import("../pages/DeviceStatus/DeviceStatus").then((m) => ({ default: m.DeviceStatus })));
-const DeviceStatusView = lazy(() => import("../pages/DeviceStatus/DeviceStatusView"));
-const Users = lazy(() => import("../pages/Users").then((m) => ({ default: m.Users })));
-const Roles = lazy(() => import("../pages/Roles").then((m) => ({ default: m.Roles })));
-const PlayLists = lazy(() => import("../pages/Playlists/PlayLists").then((m) => ({ default: m.PlayLists })));
-const PlaylistEditor = lazy(() => import("../pages/Playlists/PlaylistEditor"));
-const EmailSettings = lazy(() => import("../pages/Settings/EmailSettings").then((m) => ({ default: m.EmailSettings })));
+// Retry dynamic import once then force-reload to pick up new chunks after deploy
+function lazyRetry(importFn) {
+  return lazy(() =>
+    importFn().catch(() => {
+      // Chunk missing after deploy — reload page once to get fresh index.html
+      const key = "chunk_reload";
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        window.location.reload();
+        return new Promise(() => {}); // never resolves — page is reloading
+      }
+      sessionStorage.removeItem(key);
+      return importFn(); // second attempt — if still fails, let it crash normally
+    })
+  );
+}
+
+const DisplayTypes = lazyRetry(() => import("../pages/DisplayTypes").then((m) => ({ default: m.DisplayTypes })));
+const DisplayGroups = lazyRetry(() => import("../pages/DisplayGroups").then((m) => ({ default: m.DisplayGroups })));
+const Branches = lazyRetry(() => import("../pages/Branches/Branches").then((m) => ({ default: m.Branches })));
+const BranchManage = lazyRetry(() => import("../pages/Branches/BranchManage"));
+const Schedules = lazyRetry(() => import("../pages/Schedule/Schedules").then((m) => ({ default: m.Schedules })));
+const ManageSchedule = lazyRetry(() => import("../pages/Schedule/ManageSchedule"));
+const DeviceStatus = lazyRetry(() => import("../pages/DeviceStatus/DeviceStatus").then((m) => ({ default: m.DeviceStatus })));
+const DeviceStatusView = lazyRetry(() => import("../pages/DeviceStatus/DeviceStatusView"));
+const Users = lazyRetry(() => import("../pages/Users").then((m) => ({ default: m.Users })));
+const Roles = lazyRetry(() => import("../pages/Roles").then((m) => ({ default: m.Roles })));
+const PlayLists = lazyRetry(() => import("../pages/Playlists/PlayLists").then((m) => ({ default: m.PlayLists })));
+const PlaylistEditor = lazyRetry(() => import("../pages/Playlists/PlaylistEditor"));
+const EmailSettings = lazyRetry(() => import("../pages/Settings/EmailSettings").then((m) => ({ default: m.EmailSettings })));
 
 const Fallback = (
   <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 200 }}>

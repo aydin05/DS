@@ -22,7 +22,9 @@ class Schedule(BaseModel):
     name = models.CharField(_("Name"), max_length=100)
     description = models.TextField(_("Description"), null=True, blank=True)
     company = models.ForeignKey('account.Company', on_delete=models.CASCADE)
-    default_playlist = models.ForeignKey(Playlist, on_delete=models.CASCADE)
+    default_playlist = models.ForeignKey(Playlist, on_delete=models.SET_NULL, null=True, blank=True)
+    branches = models.ManyToManyField('branch.Branch', blank=True, related_name='schedules')
+    display_type = models.ForeignKey('display.DisplayType', on_delete=models.SET_NULL, null=True, blank=True, related_name='schedules')
 
     def __str__(self):
         return self.name

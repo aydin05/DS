@@ -32,10 +32,20 @@
         <p id="status" style="color:#94a3b8; font-size:16px; margin-top:24px;">Press DOWN to select Connect, ENTER to activate. Press 0 to sign out.</p>
     </div>
 
-    <!-- Iframe for tv-player -->
+    <!-- Local video player (Tizen: always plays from local file) -->
+    <video id="local-video" autoplay muted playsinline
+        style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; background:#000; z-index:1;"></video>
+    <!-- Iframe for tv-player (Tizen: hidden, API/heartbeat only; non-Tizen: visible, handles video) -->
     <iframe id="ds-frame" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; border:none; z-index:1;" allowfullscreen="true"></iframe>
-    <!-- Transparent overlay to capture remote key events (sits on top of iframe) -->
+    <!-- Transparent overlay to capture remote key events -->
     <div id="key-overlay" tabindex="0" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:2; background:transparent;"></div>
+    <!-- Download progress overlay -->
+    <div id="dl-overlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:#0f172a; z-index:5; text-align:center; padding-top:35%;">
+        <p style="color:#f8fafc; font-size:28px; font-family:Arial,sans-serif;">Downloading video...</p>
+        <p id="dl-progress" style="color:#94a3b8; font-size:20px; font-family:Arial,sans-serif; margin-top:12px;">0%</p>
+    </div>
+    <!-- Offline indicator (red dot, top-right) -->
+    <div id="offline-dot" style="display:none; position:absolute; top:16px; right:16px; width:16px; height:16px; border-radius:50%; background:#ef4444; z-index:10;"></div>
 
     <script>
         var urlInput = document.getElementById('url-input');
@@ -43,7 +53,13 @@
         var statusEl = document.getElementById('status');
         var dsFrame = document.getElementById('ds-frame');
         var keyOverlay = document.getElementById('key-overlay');
+        var localVideo = document.getElementById('local-video');
+        var offlineDot = document.getElementById('offline-dot');
+        var dlOverlay = document.getElementById('dl-overlay');
+        var dlProgress = document.getElementById('dl-progress');
         var isPlaying = false;
+        var IS_TIZEN = (navigator.userAgent.indexOf('Tizen') !== -1);
+        var IS_TIZEN4 = (navigator.userAgent.indexOf('Tizen 4') !== -1);
 
         // --- Register Samsung remote keys ---
         try {
@@ -63,22 +79,58 @@
                 statusEl.innerText = 'Loading: ' + url;
                 localStorage.setItem('ds_last_url', url);
                 document.getElementById('settings').style.display = 'none';
-                dsFrame.style.display = 'block';
-                keyOverlay.style.display = 'block';
-                dsFrame.src = url;
-                // Focus the overlay so key events come to our document
-                keyOverlay.focus();
+                isPlaying = true;
+
+                if (IS_TIZEN) {
+                    // Tizen: download-first, play from local file
+                    var cachedPath = localStorage.getItem('ds_cached_path');
+                    if (cachedPath) {
+                        startLocalPlayback(cachedPath);
+                    }
+
+                    if (navigator.onLine) {
+                        // Load iframe hidden (API + heartbeat only)
+                        var sep = url.indexOf('?') > -1 ? '&' : '?';
+                        dsFrame.src = url + sep + 'mode=tizen&_t=' + Date.now();
+                        dsFrame.style.display = 'block';
+                        dsFrame.style.visibility = 'hidden';
+                    } else {
+                        offlineDot.style.display = 'block';
+                    }
+
+                    if (!cachedPath && !navigator.onLine) {
+                        statusEl.innerText = 'Offline — no cached content';
+                        document.getElementById('settings').style.display = 'block';
+                        offlineDot.style.display = 'block';
+                        return;
+                    }
+                    if (!cachedPath && navigator.onLine) {
+                        dlOverlay.style.display = 'block';
+                    }
+
+                    keyOverlay.style.display = 'block';
+                    keyOverlay.focus();
+                } else {
+                    // Non-Tizen: iframe handles everything
+                    dsFrame.style.display = 'block';
+                    keyOverlay.style.display = 'block';
+                    dsFrame.src = url;
+                    keyOverlay.focus();
+                }
             } catch(e) {
                 statusEl.innerText = 'Error: ' + e.message;
             }
-            isPlaying = true;
         }
 
         function showSettings() {
             isPlaying = false;
+            stopLocalPlayback();
             dsFrame.src = 'about:blank';
             dsFrame.style.display = 'none';
+            dsFrame.style.visibility = 'visible';
             keyOverlay.style.display = 'none';
+            offlineDot.style.display = 'none';
+            dlOverlay.style.display = 'none';
             document.getElementById('settings').style.display = 'block';
             localStorage.removeItem('ds_last_url');
             focusedElement = 'input';
@@ -181,6 +233,167 @@
                 doConnect();
             }
         } catch(e) {}
+
+        // ── Tizen: Download-first local playback ──
+
+        function startLocalPlayback(path) {
+            document.getElementById('settings').style.display = 'none';
+            dlOverlay.style.display = 'none';
+            localVideo.style.display = 'block';
+            keyOverlay.style.display = 'block';
+            keyOverlay.focus();
+
+            if (!IS_TIZEN4) localVideo.loop = true;
+            if (localVideo.getAttribute('data-path') !== path) {
+                localVideo.setAttribute('data-path', path);
+                localVideo.src = path;
+                localVideo.load();
+            }
+            try { localVideo.play(); } catch(e) {}
+        }
+
+        function stopLocalPlayback() {
+            try { localVideo.pause(); } catch(e) {}
+            localVideo.removeAttribute('data-path');
+            localVideo.src = '';
+            localVideo.style.display = 'none';
+        }
+
+        // Tizen 4: loop via load() (same approach, but from local file — no network hit)
+        if (IS_TIZEN4) {
+            localVideo.addEventListener('ended', function() {
+                localVideo.load();
+                try { localVideo.play(); } catch(e) {}
+            });
+            var _t4Last = -1, _t4Stall = 0;
+            setInterval(function() {
+                if (!localVideo.src || !localVideo.duration || isNaN(localVideo.duration)) return;
+                if (localVideo.currentTime === _t4Last && localVideo.currentTime > 0) {
+                    _t4Stall++;
+                    if (_t4Stall >= 2) {
+                        localVideo.load();
+                        try { localVideo.play(); } catch(e) {}
+                        _t4Stall = 0; _t4Last = -1;
+                    }
+                } else { _t4Stall = 0; }
+                _t4Last = localVideo.currentTime;
+            }, 1000);
+        }
+
+        // Network status (events + polling fallback for Tizen 4)
+        window.addEventListener('offline', function() {
+            if (isPlaying && IS_TIZEN) offlineDot.style.display = 'block';
+        });
+        window.addEventListener('online', function() {
+            offlineDot.style.display = 'none';
+            // Ensure iframe is running for API when back online
+            if (isPlaying && IS_TIZEN && (!dsFrame.src || dsFrame.src === 'about:blank')) {
+                var url = urlInput.value.trim();
+                if (url) {
+                    if (url.indexOf('http') !== 0) url = 'http://' + url;
+                    var sep = url.indexOf('?') > -1 ? '&' : '?';
+                    dsFrame.src = url + sep + 'mode=tizen&_t=' + Date.now();
+                    dsFrame.style.display = 'block';
+                    dsFrame.style.visibility = 'hidden';
+                }
+            }
+        });
+        // Connectivity ping: navigator.onLine unreliable on Tizen 4
+        if (IS_TIZEN) {
+            setInterval(function() {
+                if (!isPlaying) return;
+                try {
+                    var saved = localStorage.getItem('ds_last_url') || '';
+                    if (!saved) return;
+                    var m = saved.match(/^(https?:\/\/[^\/]+)/);
+                    if (!m) return;
+                    var xhr = new XMLHttpRequest();
+                    xhr.open('HEAD', m[1] + '/favicon.ico?_t=' + Date.now(), true);
+                    xhr.timeout = 5000;
+                    xhr.onload = function() { offlineDot.style.display = 'none'; };
+                    xhr.onerror = function() { offlineDot.style.display = 'block'; };
+                    xhr.ontimeout = function() { offlineDot.style.display = 'block'; };
+                    xhr.send();
+                } catch(e) {}
+            }, 10000);
+        }
+
+        // Receive video URL from iframe → download and cache
+        var _dlBusy = false;
+        window.addEventListener('message', function(e) {
+            if (!e.data || e.data.type !== 'ds-video-url') return;
+            if (!IS_TIZEN || !e.data.url) return;
+            handleVideoUrl(e.data.url);
+        });
+
+        function handleVideoUrl(url) {
+            var cachedUrl = localStorage.getItem('ds_cached_url');
+            var cachedPath = localStorage.getItem('ds_cached_path');
+            if (cachedUrl === url && cachedPath) {
+                // Already cached — play if not already
+                if (localVideo.style.display === 'none') {
+                    startLocalPlayback(cachedPath);
+                }
+                return;
+            }
+            // New video — download first
+            downloadVideo(url);
+        }
+
+        function downloadVideo(url) {
+            if (_dlBusy) return;
+            if (typeof tizen === 'undefined' || !tizen.filesystem) return;
+            _dlBusy = true;
+            dlOverlay.style.display = 'block';
+            dlProgress.innerText = '0%';
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.responseType = 'arraybuffer';
+            xhr.timeout = 300000;
+            xhr.onprogress = function(ev) {
+                if (ev.lengthComputable) {
+                    dlProgress.innerText = Math.round((ev.loaded / ev.total) * 100) + '%';
+                }
+            };
+            xhr.onload = function() {
+                _dlBusy = false;
+                if (xhr.status !== 200) { dlOverlay.style.display = 'none'; return; }
+                saveToDisk(url, xhr.response);
+            };
+            xhr.onerror = function() { _dlBusy = false; dlOverlay.style.display = 'none'; };
+            xhr.ontimeout = function() { _dlBusy = false; dlOverlay.style.display = 'none'; };
+            xhr.send();
+        }
+
+        function saveToDisk(url, buffer) {
+            try {
+                tizen.filesystem.resolve('wgt-private', function(dir) {
+                    try {
+                        try { dir.deleteFile(dir.fullPath + '/cached_video.mp4'); } catch(e) {}
+                        var file = dir.createFile('cached_video.mp4');
+                        file.openStream('w', function(stream) {
+                            stream.writeBase64(bufToBase64(buffer));
+                            stream.close();
+                            var path = file.toURI();
+                            localStorage.setItem('ds_cached_url', url);
+                            localStorage.setItem('ds_cached_path', path);
+                            startLocalPlayback(path);
+                        }, function() { dlOverlay.style.display = 'none'; });
+                    } catch(e) { dlOverlay.style.display = 'none'; }
+                }, function() { dlOverlay.style.display = 'none'; }, 'rw');
+            } catch(e) { dlOverlay.style.display = 'none'; }
+        }
+
+        function bufToBase64(buf) {
+            var bin = '', bytes = new Uint8Array(buf), len = bytes.length;
+            for (var i = 0; i < len; i += 8192) {
+                var end = Math.min(i + 8192, len);
+                for (var j = i; j < end; j++) bin += String.fromCharCode(bytes[j]);
+            }
+            return window.btoa(bin);
+        }
+
     </script>
 </body>
 </html>

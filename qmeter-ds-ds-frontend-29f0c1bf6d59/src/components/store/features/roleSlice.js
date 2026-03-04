@@ -60,9 +60,16 @@ const getRoleDataById = createAsyncThunk(
 );
 const updateRoleData = createAsyncThunk(
   "editRoleSlice" /*update role data*/,
-  async (data) => {
-    const response = await axiosClient.put(`accounts/role/${data.id}/`, data);
-    return response.data;
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.put(`accounts/role/${data.id}/`, data);
+      return response.data;
+    } catch (err) {
+      if (!err.response) {
+        throw err;
+      }
+      return rejectWithValue(err.response.data);
+    }
   },
 );
 const deleteRoleData = createAsyncThunk(
@@ -163,8 +170,15 @@ const roleSlice = createSlice({
         item.id === action.payload.id ? { ...item, ...action.payload } : item
       );
     });
-    builder.addCase(updateRoleData.rejected, (state) => {
+    builder.addCase(updateRoleData.rejected, (state, action) => {
+      let error = action.payload
+        ? Object.entries(action.payload).map(([key, value]) => ({
+            name: key,
+            errors: value,
+          }))
+        : [{ name: "error", errors: ["Network error"] }];
       state.postDataLoading = false;
+      state.postError = error;
     });
 
     /*delete role data builder add case*/

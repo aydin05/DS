@@ -12,7 +12,6 @@ from account.models import Company
 from django_countries import countries
 from django.utils.http import urlsafe_base64_decode
 from django.template.loader import render_to_string
-from django.core.mail import EmailMessage
 from django.conf import settings
 
 User = get_user_model()
@@ -113,7 +112,7 @@ class ForgetPasswordRequestAPIView(generics.GenericAPIView):
         redirect_url = params_serializer.data.get('redirect_url')
         serializer = self.serializer_class(data=request.data)
         serializer.is_valid(raise_exception=True)
-        user = User.objects.filter(email=serializer.data['email']).first()
+        user = User.objects.filter(email=serializer.data['email'], is_active=True).first()
         if not user:
             return Response(data={"message": _("No account found with this email"), "action": self.response_action}, status=status.HTTP_400_BAD_REQUEST)
         mail_subject = _('Reset your password')
@@ -124,11 +123,26 @@ class ForgetPasswordRequestAPIView(generics.GenericAPIView):
             'redirect_url': f"{redirect_url}?uidb64={tokens['uid']}&token={tokens['token']}"
         })
 
-        email = EmailMessage(
-            mail_subject, message, to=[user.email]
-        )
-        email.content_subtype = 'html'
-        email.send()
+        # Use the company's SMTP config (EmailConfig) if available
+        email_config = getattr(user.company, 'email_config', None)
+        if email_config and email_config.is_active:
+            from notification.email_sender import send_email
+            success, error = send_email(
+                email_config,
+                to_emails=[user.email],
+                subject=str(mail_subject),
+                body=message,
+            )
+            if not success:
+                return Response(
+                    data={"message": _("Failed to send email. Please contact admin."), "action": self.response_action},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+        else:
+            return Response(
+                data={"message": _("Email settings are not configured. Please contact admin."), "action": self.response_action},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
         message = _("Reset password link have already sent to your email. Please check your email")
         response_data = {
             "message": message,

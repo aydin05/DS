@@ -23,6 +23,7 @@ import {
   fetchUserData,
   getUserDataById,
   postUserData,
+  resetStatus,
   toggleDeleteModal,
   toggleModal,
   updateUserData,
@@ -149,9 +150,12 @@ export const Users = () => {
 
   /*side effects*/
   useEffect(() => {
-    // dispatch(fetchUserData({ page: 1 })); //get user data
+    dispatch(fetchUserData({ page: 1 })); //get user data
     dispatch(fetchBranchData({ page: 1 })); //get branch data
     dispatch(fetchRoleData({ page: 1 })); //get role data
+    return () => {
+      dispatch(resetStatus());
+    };
   }, []);
 
   useEffect(() => {
@@ -225,7 +229,7 @@ export const Users = () => {
       title: "#",
       dataIndex: "id",
       key: "id",
-      render: (text, row, index) => index + 1,
+      render: (text, row, index) => (current_page - 1) * 10 + index + 1,
     },
     {
       title: "Email",

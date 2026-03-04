@@ -66,7 +66,7 @@ export const Roles = () => {
   const deleteRole = useCallback(() => dispatch(deleteRoleData(deletedRoleId)), [deletedRoleId, dispatch]);
   /*side effects*/
   useEffect(() => {
-    // dispatch(fetchRoleData({ page: 1 }));
+    dispatch(fetchRoleData({ page: 1 }));
     dispatch(fetchCoreGroups());
   }, []);
   /*check if role name exist*/
@@ -103,7 +103,7 @@ export const Roles = () => {
       title: "#",
       dataIndex: "id",
       key: "id",
-      render: (text, row, index) => index + 1,
+      render: (text, row, index) => (current_page - 1) * 10 + index + 1,
     },
     {
       title: "Name",

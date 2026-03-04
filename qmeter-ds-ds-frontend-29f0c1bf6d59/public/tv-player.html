@@ -61,6 +61,7 @@
         }
         // Also support path-based: /tv-player.html/portrait or hash: #portrait
         var username = params.username || window.location.hash.substring(1) || '';
+        var MODE = params.mode || '';
         if (!username) {
             document.getElementById('waiting-msg').innerText = 'Error: No username specified. Use ?username=YOUR_DISPLAY_NAME';
         }
@@ -76,8 +77,12 @@
         var LS_SIZE_KEY = 'ds_tv_size_' + username;
         try {
             currentVideoUrl = localStorage.getItem(LS_KEY) || null;
-            if (currentVideoUrl) {
+            if (currentVideoUrl && MODE !== 'tizen') {
                 showVideo(currentVideoUrl);
+            } else if (currentVideoUrl && MODE === 'tizen') {
+                // Send cached URL to parent on startup
+                var a = document.createElement('a'); a.href = currentVideoUrl;
+                try { window.parent.postMessage({ type: 'ds-video-url', url: a.href }, '*'); } catch(e) {}
             }
         } catch(e) {}
 
@@ -98,7 +103,14 @@
                         if (newUrl && newUrl !== currentVideoUrl) {
                             currentVideoUrl = newUrl;
                             try { localStorage.setItem(LS_KEY, newUrl); } catch(e) {}
-                            showVideo(newUrl);
+                            addLog('INFO', 'New video URL', { url: newUrl });
+                            if (MODE === 'tizen') {
+                                // Resolve to full URL and send to parent widget for download
+                                var a = document.createElement('a'); a.href = newUrl;
+                                try { window.parent.postMessage({ type: 'ds-video-url', url: a.href }, '*'); } catch(e) {}
+                            } else {
+                                showVideo(newUrl);
+                            }
                         } else if (!newUrl && !currentVideoUrl) {
                             document.getElementById('waiting-msg').style.display = 'block';
                             document.getElementById('waiting-msg').innerText = 'Waiting for video content...';
@@ -127,72 +139,54 @@
             xhr.onerror = function() {
                 apiReachable = false;
                 updateStatusDot();
+                addLog('ERROR', 'API fetch error (network)');
             };
             xhr.ontimeout = function() {
                 apiReachable = false;
                 updateStatusDot();
+                addLog('ERROR', 'API fetch timeout');
             };
             xhr.send();
         }
 
-        // --- Tizen 4: recreate video element to loop ---
-        function recreateVideo(url) {
-            var old = document.getElementById('player-video');
-            var parent = old ? old.parentNode : document.body;
-            if (old) {
-                try { old.pause(); old.src = ''; } catch(e) {}
-                parent.removeChild(old);
-            }
-            var v = document.createElement('video');
-            v.id = 'player-video';
-            v.autoplay = true;
-            v.muted = true;
-            v.setAttribute('playsinline', '');
-            v.style.cssText = 'width:100%;height:100%;display:block;object-fit:contain;background:#000;';
-            v.src = url;
-            v.addEventListener('ended', function() { recreateVideo(url); });
-            parent.appendChild(v);
-            v.load();
-            try { v.play(); } catch(e) {}
-        }
-
         function showVideo(url) {
+            var video = document.getElementById('player-video');
             document.getElementById('waiting-msg').style.display = 'none';
-            if (IS_TIZEN4) {
-                // Tizen 4: recreate element each time (loop attr broken)
-                recreateVideo(url);
-            } else {
-                // Tizen 7 / browsers: use native loop attribute
-                var video = document.getElementById('player-video');
+            video.style.display = 'block';
+            if (!IS_TIZEN4) {
                 video.loop = true;
-                video.style.display = 'block';
-                if (video.src !== url) {
-                    video.src = url;
-                    video.load();
-                    try { video.play(); } catch(e) {}
-                }
             }
+            if (video.src !== url) {
+                video.src = url;
+                video.load();
+                try { video.play(); } catch(e) {}
+            }
+            // Send resolved URL to parent widget for offline caching
+            try { window.parent.postMessage({ type: 'ds-video-url', url: video.src }, '*'); } catch(e) {}
         }
 
-        // Tizen 4 safety net: if video stalls for 3s, recreate
-        var _lastTime = -1;
-        var _stallCount = 0;
+        // Tizen 4: loop and seeking broken on hardware decoder.
+        // Restart via load() on ended (fastest detection).
         if (IS_TIZEN4) {
+            var vid = document.getElementById('player-video');
+            vid.addEventListener('ended', function() {
+                vid.load();
+                try { vid.play(); } catch(e) {}
+            });
+            // Safety: if stalled for 2s, also restart
+            var _t4Last = -1, _t4Stall = 0;
             setInterval(function() {
-                var v = document.getElementById('player-video');
-                if (!v || !currentVideoUrl) return;
-                if (!v.duration || isNaN(v.duration)) return;
-                if (v.currentTime === _lastTime) {
-                    _stallCount++;
-                    if (_stallCount >= 3) {
-                        recreateVideo(currentVideoUrl);
-                        _stallCount = 0;
-                        _lastTime = -1;
+                if (!vid.src || !vid.duration || isNaN(vid.duration)) return;
+                if (vid.currentTime === _t4Last && vid.currentTime > 0) {
+                    _t4Stall++;
+                    if (_t4Stall >= 2) {
+                        vid.load();
+                        try { vid.play(); } catch(e) {}
+                        _t4Stall = 0;
+                        _t4Last = -1;
                     }
-                } else {
-                    _stallCount = 0;
-                }
-                _lastTime = v.currentTime;
+                } else { _t4Stall = 0; }
+                _t4Last = vid.currentTime;
             }, 1000);
         }
 
@@ -210,6 +204,30 @@
             dot.style.display = (!apiReachable || !navigator.onLine) ? 'block' : 'none';
         }
 
+        // --- Logging ---
+        var logBuffer = [];
+        function addLog(level, message, data) {
+            logBuffer.push({
+                timestamp: new Date().toISOString(),
+                level: level,
+                message: message,
+                data: data || {}
+            });
+        }
+        function flushLogs() {
+            if (!username || logBuffer.length === 0) return;
+            var batch = logBuffer.splice(0, logBuffer.length);
+            var xhr = new XMLHttpRequest();
+            xhr.open('POST', API_BASE + 'core/device-logs/', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.timeout = 10000;
+            xhr.send(JSON.stringify({
+                username: username,
+                source: HEARTBEAT_SOURCE,
+                logs: batch
+            }));
+        }
+
         // --- Heartbeat ---
         function sendHeartbeat() {
             if (!username) return;
@@ -217,6 +235,7 @@
             xhr.open('POST', API_BASE + 'core/heartbeat/', true);
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.send(JSON.stringify({ username: username, source: HEARTBEAT_SOURCE }));
+            flushLogs();
         }
 
         // --- Sign out (press 0 on remote) ---
@@ -249,10 +268,12 @@
 
         // --- Online/Offline detection ---
         window.addEventListener('online', function() {
+            addLog('INFO', 'Network online');
             updateStatusDot();
             fetchData();
         });
         window.addEventListener('offline', function() {
+            addLog('WARN', 'Network offline');
             updateStatusDot();
         });
 
@@ -263,6 +284,9 @@
                 var cachedSize = JSON.parse(localStorage.getItem(LS_SIZE_KEY));
                 if (cachedSize) applyDisplaySize(cachedSize.width, cachedSize.height);
             } catch(e) {}
+
+            // Log startup
+            addLog('INFO', 'Player started', { mode: MODE || 'default', source: HEARTBEAT_SOURCE, ua: navigator.userAgent.substring(0, 100) });
 
             // Initial fetch
             fetchData();

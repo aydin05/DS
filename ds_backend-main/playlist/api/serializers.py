@@ -88,14 +88,72 @@ class PlaylistSerializer(ModelSerializer):
         return bool(self.instance.extra_fields)
 
 class ScheduleSerializer(ModelSerializer):
+    assigned_displays = serializers.SerializerMethodField()
+    display_type_name = serializers.SerializerMethodField()
+    display_ids = serializers.ListField(
+        child=serializers.IntegerField(), write_only=True, required=False
+    )
+
     class Meta:
         model = Schedule
-        fields = ("id", 'name', 'description', 'default_playlist')
+        fields = ("id", 'name', 'description', 'default_playlist', 'branches',
+                  'display_type', 'display_type_name', 'assigned_displays', 'display_ids')
+
+    def get_assigned_displays(self, obj):
+        from display.models import Display
+        displays = Display.objects.filter(
+            schedule=obj
+        ).select_related('branch', 'display_type').only(
+            'id', 'name', 'branch__id', 'branch__name',
+            'display_type__id', 'display_type__name',
+        )
+        return [
+            {
+                'id': d.id,
+                'name': d.name,
+                'branch_id': d.branch_id,
+                'branch_name': d.branch.name if d.branch else None,
+                'display_type_name': d.display_type.name if d.display_type else None,
+            }
+            for d in displays
+        ]
+
+    def get_display_type_name(self, obj):
+        if obj.display_type:
+            return obj.display_type.name
+        return None
+
+    def _sync_displays(self, schedule, display_ids):
+        from display.models import Display
+        company = self.context['request'].user.company
+        Display.objects.filter(schedule=schedule).update(schedule=None)
+        if display_ids:
+            Display.objects.filter(
+                id__in=display_ids, company=company
+            ).update(schedule=schedule)
+            branch_ids = Display.objects.filter(
+                schedule=schedule
+            ).values_list('branch_id', flat=True).distinct()
+            schedule.branches.set(branch_ids)
+        else:
+            schedule.branches.clear()
 
     def create(self, validated_data):
+        display_ids = validated_data.pop('display_ids', None)
+        validated_data.pop('branches', None)
         validated_data.update({'company': self.context['request'].user.company})
         schedule = super().create(validated_data)
+        if display_ids is not None:
+            self._sync_displays(schedule, display_ids)
         return schedule
+
+    def update(self, instance, validated_data):
+        display_ids = validated_data.pop('display_ids', None)
+        validated_data.pop('branches', None)
+        instance = super().update(instance, validated_data)
+        if display_ids is not None:
+            self._sync_displays(instance, display_ids)
+        return instance
 
     def validate_name(self,value):
         old_schedule = Schedule.objects.filter(name__iexact=value, company=self.context['request'].user.company)

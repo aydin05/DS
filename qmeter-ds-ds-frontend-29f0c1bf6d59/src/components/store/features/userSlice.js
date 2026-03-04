@@ -85,6 +85,10 @@ const userSlice = createSlice({
       state.deleteUserId = id ?? null;
       state.deleteDataLoading = false;
     },
+    resetStatus: (state) => {
+      state.requestStatus = false;
+      state.postDataError = "";
+    },
   },
   extraReducers: (builder) => {
     /*get user data builder add case*/
@@ -170,4 +174,4 @@ export {
   updateUserData,
   deleteUserData,
 };
-export const { toggleModal, toggleDeleteModal } = userSlice.actions;
+export const { toggleModal, toggleDeleteModal, resetStatus } = userSlice.actions;

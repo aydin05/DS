@@ -187,7 +187,7 @@ class CompanyUserSerializer(RegistrationSerializer):
         return email
 
     def create(self, validated_data):
-        # validated_data.pop('password_confirmation')
+        validated_data.pop('password_confirmation', None)
         validated_data.update({'is_master': False})
         role_group = validated_data.pop('role', None)
         branch = validated_data.pop('branch', None)
@@ -202,14 +202,18 @@ class CompanyUserSerializer(RegistrationSerializer):
         return user
 
     def update(self, instance, validated_data):
-        password = validated_data.get('password')
-        if password:
-            validated_data.update({'password': make_password(password)})
+        validated_data.pop('password_confirmation', None)
+        password = validated_data.pop('password', None)
         if "role" in validated_data:
             instance.role.set(validated_data.pop('role'))
         if 'branch' in validated_data:
             instance.branch.set(validated_data.pop('branch'))
-        return super().update(instance, validated_data)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        if password:
+            instance.set_password(password)
+        instance.save()
+        return instance
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
@@ -247,7 +251,7 @@ class ResetPasswordSerializer(serializers.Serializer):
                                     validators.RegexValidator(r'^[0-9A-Za-z_\-]+$', _('Send valid uid'), 'Uid invalid')
                                 ])
     token = serializers.CharField(required=True, validators=[
-                                    validators.RegexValidator(r'^[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,20}$', _('Send valid token'), 'Token invalid')
+                                    validators.RegexValidator(r'^[0-9A-Za-z]{1,13}-[0-9A-Za-z]{1,64}$', _('Send valid token'), 'Token invalid')
                                 ])
     password = serializers.CharField(required=True, style={'input_type': 'password'}, max_length=50)
 
@@ -271,6 +275,7 @@ class ForgetPasswordRequestSerializer(serializers.Serializer):
     email = serializers.EmailField(max_length=50)
 
     def validate_email(self, value):
-        if not User.objects.filter(email=value, is_active=True):
+        email = value.lower()
+        if not User.objects.filter(email=email, is_active=True).exists():
             raise serializers.ValidationError(_("This email not found"))
-        return value
+        return email

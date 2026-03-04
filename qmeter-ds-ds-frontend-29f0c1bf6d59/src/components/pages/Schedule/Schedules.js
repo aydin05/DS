@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo } from "react";
-import { Button, Dropdown, Form, Input, message, Select } from "antd";
+import { Button, Dropdown, Form, Input, message, TreeSelect } from "antd";
 import tableAction from "../../../assets/images/table-action.svg";
 import { SubHeader } from "../../SubComponents/SubHeader";
 import { AuthModal } from "../../SubComponents/AuthModal";
@@ -10,11 +10,12 @@ import {
   fetchScheduleData,
   getScheduleDataById,
   postScheduleData,
+  resetStatus,
   toggleDeleteModal,
   toggleModal,
   updateScheduleData,
 } from "../../store/features/scheduleSlice";
-import { fetchPlayListData } from "../../store/features/playListSlice";
+import { fetchBranchData } from "../../store/features/branchSlice";
 import { useNavigate } from "react-router-dom";
 import CustomDataTable from "../../consts/CustomDataTable";
 import { pageSize } from "../../../helpers";
@@ -38,24 +39,43 @@ export const Schedules = () => {
     deleteDataLoading,
     postError,
   } = useSelector((state) => state.scheduleSlice);
-  const playListSlice = useSelector((state) => state.playListSlice);
+  const branchSlice = useSelector((state) => state.branchSlice);
   /*component states*/
+  const branchDisplayTree = useMemo(() => {
+    return branchSlice.data.map((branch) => ({
+      title: branch.name,
+      value: `branch-${branch.id}`,
+      key: `branch-${branch.id}`,
+      selectable: false,
+      children: (branch.display || []).map((d) => ({
+        title: d.name,
+        value: d.id,
+        key: d.id,
+      })),
+    }));
+  }, [branchSlice.data]);
 
   /*component actions*/
   const toggleEdit = useCallback(() => dispatch(toggleModal()), [dispatch]);
   const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id !== null ? { open: true, id } : { open: false, id: null })), [dispatch]);
 
   const finish = useCallback((values) => {
+    const { display_ids: rawIds, ...rest } = values;
+    const display_ids = (rawIds || []).filter((v) => typeof v === 'number');
+    const payload = { ...rest, display_ids };
     if (formValue.id) {
-      values.id = formValue.id;
-      dispatch(updateScheduleData(values));
-    } else dispatch(postScheduleData(values));
+      payload.id = formValue.id;
+      dispatch(updateScheduleData(payload));
+    } else dispatch(postScheduleData(payload));
   }, [formValue.id, dispatch]);
   const deleteRole = useCallback(() => dispatch(deleteScheduleData(deleteScheduleId)), [deleteScheduleId, dispatch]);
   /*side effects*/
   useEffect(() => {
-    // dispatch(fetchScheduleData({ page: 1 }));
-    dispatch(fetchPlayListData({ page: 1 }));
+    dispatch(fetchScheduleData({ page: 1 }));
+    dispatch(fetchBranchData({ page: 1 }));
+    return () => {
+      dispatch(resetStatus());
+    };
   }, []);
   /*check if role name exist*/
   useEffect(() => {
@@ -81,7 +101,8 @@ export const Schedules = () => {
   }, [requestStatus]);
   useEffect(() => {
     if (formValue.id) {
-      form.setFieldsValue(formValue);
+      const displayIds = (formValue.assigned_displays || []).map((d) => d.id);
+      form.setFieldsValue({ ...formValue, display_ids: displayIds });
     } else {
       form.resetFields();
     }
@@ -99,17 +120,16 @@ export const Schedules = () => {
       key: "name",
     },
     {
-      title: "Play list",
-      dataIndex: "default_playlist",
-      key: "default_playlist",
-      render: (text, row) => {
-        return (
-          !playListSlice.isLoading &&
-          playListSlice.data.find((item) => item.id === text)?.name
-        );
+      title: "Assigned Displays",
+      dataIndex: "assigned_displays",
+      key: "assigned_displays",
+      render: (displays) => {
+        if (!displays || displays.length === 0) return "-";
+        return displays
+          .map((d) => `${d.branch_name || "No branch"} / ${d.name}`)
+          .join(", ");
       },
     },
-
     {
       title: "Description",
       dataIndex: "description",
@@ -150,7 +170,7 @@ export const Schedules = () => {
         </Dropdown>
       ),
     },
-  ], [dispatch, toggleDelete, navigate]);
+  ], [dispatch, toggleDelete, navigate, branchSlice.data]);
 
   const action = useCallback((page) => dispatch(fetchScheduleData({ page })), [dispatch]);
 
@@ -166,7 +186,7 @@ export const Schedules = () => {
       {/*Data Table*/}
       <CustomDataTable
         data={data}
-        isLoading={isLoading && playListSlice.isLoading}
+        isLoading={isLoading}
         columns={columns}
         action={fetchScheduleData}
         count={count}
@@ -191,22 +211,22 @@ export const Schedules = () => {
             <Input placeholder="Enter schedule name" />
           </Form.Item>
           <Form.Item
-            label={"Playlist"}
-            name={"default_playlist"}
-            rules={[{ required: true, message: "Playlist zone is required!" }]}
+            label={"Assign to Displays"}
+            name={"display_ids"}
           >
-            <Select
-              showSearch
-              filterOption={(input, option) => option.children.includes(input)}
-              disabled={playListSlice.isLoading}
-              placeholder="Select playlist"
-            >
-              {playListSlice.data.map((item, index) => (
-                <Select.Option key={index} value={item.id}>
-                  {item.name}
-                </Select.Option>
-              ))}
-            </Select>
+            <TreeSelect
+              treeData={branchDisplayTree}
+              treeCheckable
+              showCheckedStrategy={TreeSelect.SHOW_CHILD}
+              placeholder="Select branch / displays"
+              allowClear
+              treeDefaultExpandAll
+              filterTreeNode={(input, node) =>
+                node.title.toLowerCase().includes(input.toLowerCase())
+              }
+              disabled={branchSlice.isLoading}
+              style={{ width: "100%" }}
+            />
           </Form.Item>
           <Form.Item label="Description" name="description">
             <Input placeholder="Enter description" />

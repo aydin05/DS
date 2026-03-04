@@ -17,7 +17,8 @@ const initialState = {
   isLoadingSchedule: false,
   scheduleRange: [],
   postDateFormSchedule: false,
-  postError: false,
+  postError: null,
+  eventError: null,
 };
 const fetchScheduleData = createAsyncThunk(
   "getScheduleSlice",
@@ -120,7 +121,22 @@ const updateScheduleDateForm = createAsyncThunk(
     }
   },
 );
-// const deleteScheduleDateForm =
+const deleteScheduleDateForm = createAsyncThunk(
+  "deleteScheduleDateForm",
+  async (payload, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.delete(
+        `playlist/${payload.scheduleId}/schedule-playlist/${payload.eventId}/`,
+      );
+      return response.data;
+    } catch (err) {
+      if (!err.response) {
+        throw err;
+      }
+      return rejectWithValue(err.response.data);
+    }
+  },
+);
 
 const scheduleSlice = createSlice({
   name: "scheduleSlice",
@@ -138,6 +154,12 @@ const scheduleSlice = createSlice({
       state.isOpenDeleteModal = open ?? !state.isOpenDeleteModal;
       state.deleteScheduleId = id ?? null;
       state.deleteDataLoading = false;
+    },
+    resetStatus: (state) => {
+      state.requestStatus = "";
+      state.eventRequestStatus = "";
+      state.postError = null;
+      state.eventError = null;
     },
   },
   extraReducers: (builder) => {
@@ -254,10 +276,10 @@ const scheduleSlice = createSlice({
       // state.eventRequestStatus = "post";
       state.isOpenModal = false;
     });
-    builder.addCase(postScheduleDateForm.rejected, (state) => {
+    builder.addCase(postScheduleDateForm.rejected, (state, action) => {
       state.postDataLoading = false;
       state.postDateFormSchedule = false;
-      state.isOpenModal = false;
+      state.eventError = action.payload || { error: "Failed to create event" };
     });
 
     /*fetch schedule range by id*/
@@ -269,8 +291,22 @@ const scheduleSlice = createSlice({
       state.postDataLoading = false;
       state.eventRequestStatus = "update";
     });
-    builder.addCase(updateScheduleDateForm.rejected, (state) => {
+    builder.addCase(updateScheduleDateForm.rejected, (state, action) => {
       state.postDataLoading = false;
+      state.eventError = action.payload || { error: "Failed to update event" };
+    });
+
+    /*delete schedule event builder add case*/
+    builder.addCase(deleteScheduleDateForm.pending, (state) => {
+      state.deleteDataLoading = true;
+    });
+    builder.addCase(deleteScheduleDateForm.fulfilled, (state) => {
+      state.deleteDataLoading = false;
+      state.eventRequestStatus = "delete";
+    });
+    builder.addCase(deleteScheduleDateForm.rejected, (state, action) => {
+      state.deleteDataLoading = false;
+      state.eventError = action.payload || { error: "Failed to delete event" };
     });
   },
 });
@@ -285,5 +321,6 @@ export {
   fetchScheduleDateRange,
   postScheduleDateForm,
   updateScheduleDateForm,
+  deleteScheduleDateForm,
 };
-export const { toggleModal, toggleDeleteModal } = scheduleSlice.actions;
+export const { toggleModal, toggleDeleteModal, resetStatus } = scheduleSlice.actions;

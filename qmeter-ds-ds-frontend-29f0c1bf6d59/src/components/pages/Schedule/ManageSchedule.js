@@ -4,9 +4,11 @@ import dayjs from "dayjs";
 import { useDispatch, useSelector } from "react-redux";
 import {
   deleteScheduleData,
+  deleteScheduleDateForm,
   fetchScheduleDateRange,
   getScheduleDataById,
   postScheduleDateForm,
+  resetStatus,
   toggleModal,
   updateScheduleData,
   updateScheduleDateForm,
@@ -25,6 +27,7 @@ import {
   Row,
   Select,
   Spin,
+  Tag,
 } from "antd";
 import { AuthModal } from "../../SubComponents/AuthModal";
 import { fetchPlayListData } from "../../store/features/playListSlice";
@@ -42,6 +45,7 @@ const ManageSchedule = (props) => {
     deleteDataLoading,
     requestStatus,
     eventRequestStatus,
+    eventError,
   } = useSelector((state) => state.scheduleSlice);
   const playListSlice = useSelector((state) => state.playListSlice);
   const dispatch = useDispatch();
@@ -54,7 +58,7 @@ const ManageSchedule = (props) => {
   const [isOpenScheduleDeleteModal, setIsOpenScheduleDeleteModal] =
     useState(false);
   const [allDay, setIsAllDay] = useState(false);
-  const [repeatType, setRepeatType] = useState(false);
+  const [repeatType, setRepeatType] = useState(null);
   const [saveScheduleData, setSaveScheduleData] = useState({});
   const localizer = dayjsLocalizer(dayjs);
   const [startDate, setStartDate] = useState(null);
@@ -66,7 +70,7 @@ const ManageSchedule = (props) => {
   };
   const fetchScheduleDataById = () => {
     axiosClient(
-      `playlist/${params.id}/schedule-playlist/${eventData.id}/ `,
+      `playlist/${params.id}/schedule-playlist/${eventData.id}/`,
     ).then((res) => {
       setSelectEvent(false);
       let data = res.data;
@@ -76,15 +80,14 @@ const ManageSchedule = (props) => {
       setRepeatType(data.repeat_type);
       setSaveScheduleData(data);
       form.setFieldsValue(data);
-      toggleEditScheduleModal();
+      setEditEventModal(true);
     });
-    setEditEventModal(!editEventModal);
   };
   const toggleEditScheduleModal = (reset) => {
     setEditEventModal(!editEventModal);
     if (reset) {
       setIsAllDay(false);
-      setRepeatType(false);
+      setRepeatType(null);
       form.resetFields();
     }
   };
@@ -99,13 +102,11 @@ const ManageSchedule = (props) => {
     });
   };
   const deleteEvent = () => {
-    axiosClient
-      .delete(`playlist/${params.id}/schedule-playlist/${eventData.id}/`)
-      .then(() => {
-        dispatch(fetchScheduleDateRange(params.id));
+    dispatch(deleteScheduleDateForm({ scheduleId: params.id, eventId: eventData.id })).then((res) => {
+      if (!res.error) {
         toggleSelectEvent({});
-        message.success("This event deleted successfully!");
-      });
+      }
+    });
   };
   const selectSlot = (event) => {
     toggle();
@@ -113,6 +114,7 @@ const ManageSchedule = (props) => {
   const finish = (values) => {
     values["start_time"] = dayjs(values.start_time).format();
     values["end_time"] = dayjs(values.end_time).format();
+    values["playlist"] = formValue.default_playlist;
     if (saveScheduleData.id) {
       values["id"] = saveScheduleData.id;
       dispatch(updateScheduleDateForm({ id: params.id, data: values }));
@@ -166,14 +168,24 @@ const ManageSchedule = (props) => {
     dispatch(fetchScheduleDateRange(params.id));
     dispatch(fetchPlayListData({ page: 1 }));
     dispatch(getScheduleDataById({ id: params.id, condition: true }));
+    return () => {
+      dispatch(resetStatus());
+    };
   }, []);
   useEffect(() => {
     if (postDateFormSchedule) {
-      message.success("New event added successfuly!");
+      message.success("New event added successfully!");
       dispatch(fetchScheduleDateRange(params.id));
       form.resetFields();
     }
   }, [postDateFormSchedule]);
+  useEffect(() => {
+    if (eventError) {
+      const errorMsg = typeof eventError === 'string' ? eventError
+        : eventError.error || eventError.detail || JSON.stringify(eventError);
+      message.error(errorMsg);
+    }
+  }, [eventError]);
 
   return (
     <div>
@@ -200,6 +212,25 @@ const ManageSchedule = (props) => {
         <Spin />
       ) : (
         <div>
+          {/* Schedule info panel */}
+          {formValue.assigned_displays && formValue.assigned_displays.length > 0 && (
+            <div className="mb-4" style={{ padding: "12px 16px", background: "#f5f5f5", borderRadius: "8px" }}>
+              <div>
+                <strong>Assigned Displays: </strong>
+                {formValue.assigned_displays.map((d) => (
+                  <Tag key={d.id} color="blue" style={{ marginBottom: "4px" }}>
+                    {d.name} → {d.branch_name || "No branch"}
+                  </Tag>
+                ))}
+              </div>
+            </div>
+          )}
+          {formValue.id && (!formValue.assigned_displays || formValue.assigned_displays.length === 0) && (
+            <div className="mb-4" style={{ padding: "12px 16px", background: "#fffbe6", borderRadius: "8px", border: "1px solid #ffe58f" }}>
+              <span style={{ color: "#ad6800" }}>No displays are currently assigned to this schedule.</span>
+            </div>
+          )}
+
           <div className={"d-flex align-items-center mb-4"}>
             <div style={{ marginRight: "20px" }}>
               <span>Go to date: </span>
@@ -244,7 +275,7 @@ const ManageSchedule = (props) => {
             onSelectEvent={getScheduleRange}
             popup={true}
             initialValue={"dayGridMonth"}
-            // defaultView="month"
+            drilldownView={null}
             formats={formats}
             date={currentDate}
             onNavigate={(newDate) => setCurrentDate(newDate)}
@@ -366,25 +397,6 @@ const ManageSchedule = (props) => {
           </div>
           <Form.Item label="Description" name="description">
             <Input placeholder="Enter description" />
-          </Form.Item>
-          <Form.Item
-            label={"Playlist"}
-            name={"playlist"}
-            rules={[{ required: true, message: "Playlist is required!" }]}
-          >
-            <Select
-              showSearch
-              filterOption={(input, option) => option.children.includes(input)}
-              disabled={playListSlice.isLoading}
-              placeholder="Select playlist"
-            >
-              {playListSlice.data.length > 0 &&
-                playListSlice.data.map((item, index) => (
-                  <Select.Option key={index} value={item.id}>
-                    {item.name}
-                  </Select.Option>
-                ))}
-            </Select>
           </Form.Item>
           <div className="d-flex justify-content-end">
             <Button
