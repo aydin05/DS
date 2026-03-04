@@ -9,7 +9,10 @@ function lazyRetry(importFn) {
       const key = "chunk_reload";
       if (!sessionStorage.getItem(key)) {
         sessionStorage.setItem(key, "1");
-        window.location.reload();
+        // Fetch fresh index.html bypassing all caches, then reload
+        fetch(window.location.href, { cache: "no-store" })
+          .catch(() => {})
+          .finally(() => window.location.reload());
         return new Promise(() => {}); // never resolves — page is reloading
       }
       sessionStorage.removeItem(key);

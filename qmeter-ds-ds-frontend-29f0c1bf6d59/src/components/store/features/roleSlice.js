@@ -87,6 +87,7 @@ const roleSlice = createSlice({
       state.isOpenModal = !state.isOpenModal;
       state.formValue = {};
       state.requestStatus = "";
+      state.postError = null;
     },
     toggleDeleteModal: (state, action) => {
       const { open, id } = action.payload ?? {};

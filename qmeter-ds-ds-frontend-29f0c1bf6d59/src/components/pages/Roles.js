@@ -73,6 +73,8 @@ export const Roles = () => {
   useEffect(() => {
     if (postError) {
       form.setFields(postError);
+      const errors = postError.flatMap((e) => e.errors || []);
+      if (errors.length) message.error(errors.join(", "));
     }
   }, [postError]);
   useEffect(() => {
