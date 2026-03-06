@@ -169,6 +169,17 @@ export const PlayLists = () => {
           dispatch(toggleDuplicateModal());
           dispatch(fetchPlayListData({ page: 1 }));
           message.success("Playlist duplicated successfully");
+        })
+        .catch((err) => {
+          if (err && typeof err === "object") {
+            const fields = Object.entries(err).map(([key, value]) => ({
+              name: key,
+              errors: Array.isArray(value) ? value : [value],
+            }));
+            duplicateForm.setFields(fields);
+          } else {
+            message.error("Failed to rename playlist");
+          }
         });
     }
   };

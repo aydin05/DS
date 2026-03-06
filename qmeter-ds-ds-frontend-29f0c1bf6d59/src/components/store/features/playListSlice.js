@@ -57,12 +57,19 @@ const getPlayListDataById = createAsyncThunk(
 );
 const updatePlayListData = createAsyncThunk(
   "editPlayListSlice" /*update role data*/,
-  async (data) => {
-    const response = await axiosClient.put(
-      `playlist/playlist/${data.id}/`,
-      data,
-    );
-    return response.data;
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.put(
+        `playlist/playlist/${data.id}/`,
+        data,
+      );
+      return response.data;
+    } catch (err) {
+      if (!err.response) {
+        throw err;
+      }
+      return rejectWithValue(err.response.data);
+    }
   },
 );
 const deletePlayListData = createAsyncThunk(

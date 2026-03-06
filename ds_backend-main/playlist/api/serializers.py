@@ -65,6 +65,14 @@ class PlaylistSerializer(ModelSerializer):
     def get_default_display_type(self, obj):
         return DisplayTypeSerializer(obj.default_display_type).data
 
+    def validate_name(self, value):
+        old_playlist = Playlist.objects.filter(name__iexact=value, company=self.context['request'].user.company)
+        if self.instance:
+            old_playlist = old_playlist.exclude(id=self.instance.id)
+        if old_playlist.exists():
+            raise serializers.ValidationError("Playlist with this name already exists")
+        return value
+
     def update(self, instance, validated_data):
         instance.company = self.context['request'].user.company
         instance.name = validated_data.get('name', instance.name)

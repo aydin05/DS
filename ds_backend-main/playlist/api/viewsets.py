@@ -74,21 +74,26 @@ class PlaylistViewSet(MultiSerializerViewSet):
         original = self.get_object()
         company = request.user.company
 
-        # Deep copy extra_fields JSON
-        new_extra_fields = copy.deepcopy(original.extra_fields) if original.extra_fields else []
+        # Generate a unique name for the duplicate
+        base_name = "Copy of {}".format(original.name)
+        new_name = base_name
+        counter = 2
+        while Playlist.objects.filter(name__iexact=new_name, company=company).exists():
+            new_name = "{} ({})".format(base_name, counter)
+            counter += 1
 
-        # Create duplicated playlist
+        # Create duplicated playlist — always start with empty extra_fields
+        # so only the published state (slides) is copied, not unpublished drafts.
         new_playlist = Playlist.objects.create(
-            name="Copy of {}".format(original.name),
+            name=new_name,
             description=original.description,
             company=company,
             default_display_type=original.default_display_type,
-            extra_fields=new_extra_fields,
+            extra_fields=[],
         )
 
         # Duplicate all slides and their items
         for slide in original.slide_set.all().order_by('position'):
-            old_slide_id = slide.id
             slide_items = list(slide.slideitem_set.all())
 
             new_slide = Slide.objects.create(
@@ -452,6 +457,8 @@ def _trigger_merge_after_publish(playlist, request):
                 m = _MV.objects.get(pk=merged_id)
 
                 # result is now a dict: {"path": ..., "skipped_slides": [...], "error": ...}
+                if result is None:
+                    result = {"path": None, "skipped_slides": [], "error": "Merge returned None (no slides?)"}
                 merge_path = result.get('path') if isinstance(result, dict) else result
                 skipped = result.get('skipped_slides', []) if isinstance(result, dict) else []
                 merge_error = result.get('error') if isinstance(result, dict) else None

@@ -176,6 +176,50 @@ class PlaylistDuplicateTests(TestCase):
         dup = Playlist.objects.get(name="Copy of Original")
         self.assertEqual(dup.slide_set.count(), 1)
 
+    def test_duplicate_twice_generates_unique_names(self):
+        pl = create_playlist(self.company, self.dt, name="Original")
+        create_slide(pl, self.company, name="S1", position=0)
+        self.client.post(
+            f"/api/v1/playlist/playlist/{pl.id}/duplicate/",
+            **auth_header(self.token),
+        )
+        resp2 = self.client.post(
+            f"/api/v1/playlist/playlist/{pl.id}/duplicate/",
+            **auth_header(self.token),
+        )
+        self.assertEqual(resp2.status_code, status.HTTP_200_OK)
+        self.assertTrue(Playlist.objects.filter(name="Copy of Original").exists())
+        self.assertTrue(Playlist.objects.filter(name="Copy of Original (2)").exists())
+
+    def test_duplicate_clears_extra_fields(self):
+        pl = create_playlist(self.company, self.dt, name="DraftPL")
+        pl.extra_fields = [{"name": "unpublished draft"}]
+        pl.save()
+        create_slide(pl, self.company, name="S1", position=0)
+        resp = self.client.post(
+            f"/api/v1/playlist/playlist/{pl.id}/duplicate/",
+            **auth_header(self.token),
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        dup = Playlist.objects.get(name="Copy of DraftPL")
+        self.assertEqual(dup.extra_fields, [])
+        self.assertEqual(dup.slide_set.count(), 1)
+
+    def test_rename_duplicate_to_existing_name_fails(self):
+        pl = create_playlist(self.company, self.dt, name="Original")
+        resp = self.client.post(
+            f"/api/v1/playlist/playlist/{pl.id}/duplicate/",
+            **auth_header(self.token),
+        )
+        dup_id = resp.data["id"]
+        resp2 = self.client.put(
+            f"/api/v1/playlist/playlist/{dup_id}/",
+            {"name": "Original", "default_display_type": self.dt.id},
+            format="json",
+            **auth_header(self.token),
+        )
+        self.assertEqual(resp2.status_code, status.HTTP_400_BAD_REQUEST)
+
 
 class ScheduleCRUDTests(TestCase):
     """Test /api/v1/playlist/schedule/"""
