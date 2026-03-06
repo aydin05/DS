@@ -161,6 +161,15 @@ export const PlayLists = () => {
     dispatch(duplicatePlayList(id));
   }, [dispatch]);
 
+  const cancelDuplicate = useCallback(() => {
+    if (duplicatedPlaylist) {
+      dispatch(deletePlayListData(duplicatedPlaylist.id)).then(() => {
+        dispatch(fetchPlayListData({ page: current_page || 1 }));
+      });
+    }
+    dispatch(toggleDuplicateModal());
+  }, [duplicatedPlaylist, dispatch, current_page]);
+
   const finishDuplicateRename = (values) => {
     if (duplicatedPlaylist) {
       dispatch(updatePlayListData({ id: duplicatedPlaylist.id, ...values }))
@@ -341,7 +350,7 @@ export const PlayLists = () => {
       <AuthModal
         title="Rename duplicated playlist"
         isOpen={isOpenDuplicateModal}
-        cancel={() => dispatch(toggleDuplicateModal())}
+        cancel={cancelDuplicate}
         isFooter={"none"}
       >
         <Form layout="vertical" onFinish={finishDuplicateRename} form={duplicateForm}>
@@ -353,7 +362,7 @@ export const PlayLists = () => {
             <Input placeholder="Enter name" />
           </Form.Item>
           <div className="d-flex justify-content-end">
-            <Button type="text" htmlType="button" onClick={() => dispatch(toggleDuplicateModal())}>
+            <Button type="text" htmlType="button" onClick={cancelDuplicate}>
               Cancel
             </Button>
             <Button loading={postDataLoading} className="ant-btn-success" htmlType="submit">
