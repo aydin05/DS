@@ -1,6 +1,6 @@
 from core.models import WidgetType
 from display.models import *
-from rest_framework import permissions
+from rest_framework import permissions, status
 from display.api.serializers import DisplayTypeSerializer, DisplayGroupSerializer,DisplaySerializer,DisplayGroupCreateSerializer
 from display.api.permissions import DisplayTypePermission,DisplayGroupPermission,DisplayPermission
 from core.api.viewsets import MultiSerializerViewSet
@@ -10,6 +10,7 @@ from playlist.api.serializers import PlaylistDetailSerializer
 from rest_framework.response import Response
 from playlist.models import Playlist
 from dsqmeter.utils.display_helpers import get_playlist_id_for_display
+from django.db.models import ProtectedError
 
 class DisplayTypeViewSet(MultiSerializerViewSet):
     queryset = DisplayType.objects.all()
@@ -22,6 +23,15 @@ class DisplayTypeViewSet(MultiSerializerViewSet):
     model = DisplayType
     filter_backends = [filters.SearchFilter]
     search_fields = ['name','description']
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except ProtectedError:
+            return Response(
+                {"detail": "Cannot delete this display type because it is used by one or more playlists. Please reassign those playlists first."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
     
 

@@ -13,6 +13,7 @@ const initialState = {
   requestStatus: "",
   deleteDisplayTypeId: null,
   deleteDataLoading: false,
+  deleteError: null,
   postError: null,
 };
 const fetchDisplayTypeData = createAsyncThunk(
@@ -95,6 +96,7 @@ const displayTypeSlice = createSlice({
       state.isOpenDeleteModal = open ?? !state.isOpenDeleteModal;
       state.deleteDisplayTypeId = id ?? null;
       state.deleteDataLoading = false;
+      state.deleteError = null;
     },
   },
   extraReducers: (builder) => {
@@ -180,6 +182,8 @@ const displayTypeSlice = createSlice({
     });
     builder.addCase(deleteDisplayTypeData.rejected, (state, action) => {
       state.deleteDataLoading = false;
+      state.isOpenDeleteModal = false;
+      state.deleteError = action.payload?.detail || "Failed to delete display type";
     });
   },
 });

@@ -42,6 +42,7 @@ export const DisplayTypes = () => {
     deleteDisplayTypeId,
     deleteDataLoading,
     postError,
+    deleteError,
   } = useSelector((state) => state.displayTypeSlice);
 
   const toggleEdit = useCallback(() => dispatch(toggleModal()), [dispatch]);
@@ -71,6 +72,11 @@ export const DisplayTypes = () => {
       dispatch(fetchDisplayTypeData({ page: 1 }));
     }
   }, [requestStatus]);
+  useEffect(() => {
+    if (deleteError) {
+      message.error(deleteError);
+    }
+  }, [deleteError]);
   useEffect(() => {
     if (formValue.id) {
       form.setFieldsValue(formValue);
