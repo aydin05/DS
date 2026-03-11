@@ -76,9 +76,16 @@ const updateBranchData = createAsyncThunk(
     }
   },
 );
-const deleteBranchData = createAsyncThunk("deleteBranchSlice", async (id) => {
-  const response = await axiosClient.delete(`branch/branch/${id}/`);
-  return response.data;
+const deleteBranchData = createAsyncThunk("deleteBranchSlice", async (id, { rejectWithValue }) => {
+  try {
+    const response = await axiosClient.delete(`branch/branch/${id}/`);
+    return response.data;
+  } catch (err) {
+    if (!err.response) {
+      throw err;
+    }
+    return rejectWithValue(err.response.data);
+  }
 });
 const patchBranchNotification = createAsyncThunk(
   "patchBranchNotification",

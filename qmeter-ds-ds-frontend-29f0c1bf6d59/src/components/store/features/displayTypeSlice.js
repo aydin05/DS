@@ -52,19 +52,33 @@ const getDisplayTypeDataById = createAsyncThunk(
 );
 const updateDisplayTypeData = createAsyncThunk(
   "editDisplayTypeSlice" /*update displayType data*/,
-  async (data) => {
-    const response = await axiosClient.put(
-      `display/display-type/${data.id}/`,
-      data,
-    );
-    return response.data;
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.put(
+        `display/display-type/${data.id}/`,
+        data,
+      );
+      return response.data;
+    } catch (err) {
+      if (!err.response) {
+        throw err;
+      }
+      return rejectWithValue(err.response.data);
+    }
   },
 );
 const deleteDisplayTypeData = createAsyncThunk(
   "deleteDisplayTypeSlice" /*delete displayType data*/,
-  async (id) => {
-    const response = await axiosClient.delete(`display/display-type/${id}/`);
-    return response.data;
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.delete(`display/display-type/${id}/`);
+      return response.data;
+    } catch (err) {
+      if (!err.response) {
+        throw err;
+      }
+      return rejectWithValue(err.response.data);
+    }
   },
 );
 const displayTypeSlice = createSlice({
@@ -145,8 +159,14 @@ const displayTypeSlice = createSlice({
         item.id === action.payload.id ? { ...item, ...action.payload } : item
       );
     });
-    builder.addCase(updateDisplayTypeData.rejected, (state) => {
+    builder.addCase(updateDisplayTypeData.rejected, (state, action) => {
       state.postDataLoading = false;
+      state.postError = action.payload
+        ? Object.entries(action.payload).map(([key, value]) => ({
+            name: key,
+            errors: value,
+          }))
+        : [{ name: "error", errors: ["Network error"] }];
     });
 
     /*delete display type data builder add case*/
@@ -158,7 +178,7 @@ const displayTypeSlice = createSlice({
       state.requestStatus = "delete";
       state.isOpenDeleteModal = false;
     });
-    builder.addCase(deleteDisplayTypeData.rejected, (state) => {
+    builder.addCase(deleteDisplayTypeData.rejected, (state, action) => {
       state.deleteDataLoading = false;
     });
   },

@@ -77,14 +77,9 @@ class PlaylistSerializer(ModelSerializer):
         instance.company = self.context['request'].user.company
         instance.name = validated_data.get('name', instance.name)
         instance.description = validated_data.get('description', instance.description)
-        display_type_id = self.initial_data.get('default_display_type', None)
-        if display_type_id is not None:
-            if isinstance(display_type_id, DisplayType):
-                instance.default_display_type = display_type_id
-            else:
-                display_type = DisplayType.objects.filter(id=display_type_id).first()
-                if display_type:
-                    instance.default_display_type = display_type
+        display_type = validated_data.get('default_display_type', None)
+        if display_type is not None:
+            instance.default_display_type = display_type
         instance.save()
         return instance
 
@@ -192,8 +187,8 @@ class SchedulePlaylistSerializer(ModelSerializer):
         return data
 
     def validate(self, attrs):
-        schedule = get_object_or_404(Schedule, pk=self.context['view'].kwargs['schedule_id'])
-        company_tz_name = getattr(schedule.company, 'timezone', None)
+        self._schedule = get_object_or_404(Schedule, pk=self.context['view'].kwargs['schedule_id'])
+        company_tz_name = getattr(self._schedule.company, 'timezone', None)
         tz = pytz.timezone(company_tz_name) if company_tz_name else default_tz
         
         for field in ['start_time', 'end_time']:
@@ -207,7 +202,7 @@ class SchedulePlaylistSerializer(ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        schedule = get_object_or_404(Schedule, pk=self.context['view'].kwargs['schedule_id'])
+        schedule = getattr(self, '_schedule', None) or get_object_or_404(Schedule, pk=self.context['view'].kwargs['schedule_id'])
         if not validated_data.get('playlist'):
             validated_data['playlist'] = schedule.default_playlist
         if not validated_data.get('playlist'):

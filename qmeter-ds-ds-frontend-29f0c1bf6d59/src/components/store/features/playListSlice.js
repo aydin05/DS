@@ -74,9 +74,16 @@ const updatePlayListData = createAsyncThunk(
 );
 const deletePlayListData = createAsyncThunk(
   "deletePlayListSlice" /*delete role data*/,
-  async (id) => {
-    const response = await axiosClient.delete(`playlist/playlist/${id}/`);
-    return response.data;
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.delete(`playlist/playlist/${id}/`);
+      return response.data;
+    } catch (err) {
+      if (!err.response) {
+        throw err;
+      }
+      return rejectWithValue(err.response.data);
+    }
   },
 );
 const publishPlayList = createAsyncThunk("publishPlayList", async (id) => {

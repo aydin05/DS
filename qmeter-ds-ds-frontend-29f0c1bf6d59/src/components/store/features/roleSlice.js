@@ -74,9 +74,16 @@ const updateRoleData = createAsyncThunk(
 );
 const deleteRoleData = createAsyncThunk(
   "deleteRoleSlice" /*delete role data*/,
-  async (id) => {
-    const response = await axiosClient.delete(`accounts/role/${id}/`);
-    return response.data;
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.delete(`accounts/role/${id}/`);
+      return response.data;
+    } catch (err) {
+      if (!err.response) {
+        throw err;
+      }
+      return rejectWithValue(err.response.data);
+    }
   },
 );
 const roleSlice = createSlice({

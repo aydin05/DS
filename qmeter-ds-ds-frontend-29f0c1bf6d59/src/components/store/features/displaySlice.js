@@ -47,16 +47,30 @@ const getDisplayDataById = createAsyncThunk(
 );
 const updateDisplayData = createAsyncThunk(
   "editDisplaySlice" /*update displayType data*/,
-  async (data) => {
-    const response = await axiosClient.put(`display/display/${data.id}/`, data);
-    return response.data;
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.put(`display/display/${data.id}/`, data);
+      return response.data;
+    } catch (err) {
+      if (!err.response) {
+        throw err;
+      }
+      return rejectWithValue(err.response.data);
+    }
   },
 );
 const deleteDisplayData = createAsyncThunk(
   "deleteDisplaySlice" /*delete displayType data*/,
-  async (id) => {
-    const response = await axiosClient.delete(`display/display/${id}/`);
-    return response.data;
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.delete(`display/display/${id}/`);
+      return response.data;
+    } catch (err) {
+      if (!err.response) {
+        throw err;
+      }
+      return rejectWithValue(err.response.data);
+    }
   },
 );
 const displaySlice = createSlice({

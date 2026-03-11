@@ -174,7 +174,6 @@ const ManageSchedule = (props) => {
   }, []);
   useEffect(() => {
     if (postDateFormSchedule) {
-      message.success("New event added successfully!");
       dispatch(fetchScheduleDateRange(params.id));
       form.resetFields();
     }

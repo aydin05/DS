@@ -56,19 +56,33 @@ const getScheduleDataById = createAsyncThunk(
 );
 const updateScheduleData = createAsyncThunk(
   "editScheduleSlice" /*update role data*/,
-  async (data) => {
-    const response = await axiosClient.put(
-      `playlist/schedule/${data.id}/`,
-      data,
-    );
-    return response.data;
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.put(
+        `playlist/schedule/${data.id}/`,
+        data,
+      );
+      return response.data;
+    } catch (err) {
+      if (!err.response) {
+        throw err;
+      }
+      return rejectWithValue(err.response.data);
+    }
   },
 );
 const deleteScheduleData = createAsyncThunk(
   "deleteScheduleSlice" /*delete role data*/,
-  async (id) => {
-    const response = await axiosClient.delete(`playlist/schedule/${id}/`);
-    return response.data;
+  async (id, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.delete(`playlist/schedule/${id}/`);
+      return response.data;
+    } catch (err) {
+      if (!err.response) {
+        throw err;
+      }
+      return rejectWithValue(err.response.data);
+    }
   },
 );
 /*Schedule fetch date*/
@@ -226,8 +240,14 @@ const scheduleSlice = createSlice({
         item.id === action.payload.id ? { ...item, ...action.payload } : item
       );
     });
-    builder.addCase(updateScheduleData.rejected, (state) => {
+    builder.addCase(updateScheduleData.rejected, (state, action) => {
       state.postDataLoading = false;
+      state.postError = action.payload
+        ? Object.entries(action.payload).map(([key, value]) => ({
+            name: key,
+            errors: value,
+          }))
+        : [{ name: "error", errors: ["Network error"] }];
     });
 
     /*delete schedule data builder add case*/

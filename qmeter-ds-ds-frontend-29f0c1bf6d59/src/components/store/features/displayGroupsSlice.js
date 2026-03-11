@@ -13,6 +13,7 @@ const initialState = {
   requestStatus: "",
   deleteDisplayGroupId: null,
   deleteDataLoading: false,
+  postError: null,
 };
 const fetchDisplayGroupData = createAsyncThunk(
   "getDisplayGroupSlice",
@@ -29,10 +30,17 @@ const fetchDisplayGroupData = createAsyncThunk(
 );
 const postDisplayGroupData = createAsyncThunk(
   "postDisplayGroupSlice" /*post displayType data*/,
-  async (data) => {
+  async (data, { rejectWithValue }) => {
     /*post displayType data*/
-    const response = await axiosClient.post("display/display-group/", data);
-    return response.data;
+    try {
+      const response = await axiosClient.post("display/display-group/", data);
+      return response.data;
+    } catch (err) {
+      if (!err.response) {
+        throw err;
+      }
+      return rejectWithValue(err.response.data);
+    }
   },
 );
 const getDisplayGroupDataById = createAsyncThunk(
@@ -44,12 +52,19 @@ const getDisplayGroupDataById = createAsyncThunk(
 );
 const updateDisplayGroupData = createAsyncThunk(
   "editDisplayGroupSlice" /*update displayType data*/,
-  async (data) => {
-    const response = await axiosClient.put(
-      `display/display-group/${data.id}/`,
-      data,
-    );
-    return response.data;
+  async (data, { rejectWithValue }) => {
+    try {
+      const response = await axiosClient.put(
+        `display/display-group/${data.id}/`,
+        data,
+      );
+      return response.data;
+    } catch (err) {
+      if (!err.response) {
+        throw err;
+      }
+      return rejectWithValue(err.response.data);
+    }
   },
 );
 const deleteDisplayGroupData = createAsyncThunk(
@@ -100,7 +115,14 @@ const displayGroupSlice = createSlice({
       state.isOpenModal = false;
     });
     builder.addCase(postDisplayGroupData.rejected, (state, action) => {
+      let error = action.payload
+        ? Object.entries(action.payload).map(([key, value]) => ({
+            name: key,
+            errors: value,
+          }))
+        : [{ name: "error", errors: ["Network error"] }];
       state.postDataLoading = false;
+      state.postError = error;
     });
     /*get display group data builder add case*/
     builder.addCase(getDisplayGroupDataById.pending, (state, action) => {
@@ -127,8 +149,14 @@ const displayGroupSlice = createSlice({
         item.id === action.payload.id ? { ...item, ...action.payload } : item
       );
     });
-    builder.addCase(updateDisplayGroupData.rejected, (state) => {
+    builder.addCase(updateDisplayGroupData.rejected, (state, action) => {
       state.postDataLoading = false;
+      state.postError = action.payload
+        ? Object.entries(action.payload).map(([key, value]) => ({
+            name: key,
+            errors: value,
+          }))
+        : [{ name: "error", errors: ["Network error"] }];
     });
     /*delete display group data builder add case*/
     builder.addCase(deleteDisplayGroupData.pending, (state, action) => {

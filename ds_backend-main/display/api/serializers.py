@@ -39,12 +39,12 @@ class DisplaySerializer(ModelSerializer):
 
     def create(self, validated_data):   
         validated_data.update({'company': self.context['request'].user.company})
-        display_group = 'display_group' in validated_data
-        playlist = 'playlist' in validated_data
-        schedule = 'schedule' in validated_data
+        display_group = validated_data.get('display_group')
+        playlist = validated_data.get('playlist')
+        schedule = validated_data.get('schedule')
         if (display_group and playlist) or (display_group and schedule) or (playlist and schedule):
             raise serializers.ValidationError("You can't create display with both playlist and schedule or playlist and display group")
-        if not (display_group) and not (playlist) and not (schedule):
+        if not display_group and not playlist and not schedule:
             raise serializers.ValidationError("You must create display with playlist or schedule or display group")
         display = super().create(validated_data)
         return display
@@ -131,13 +131,13 @@ class DisplayGroupCreateSerializer(ModelSerializer):
         self.fields['schedule'].required = False
 
     def create(self, validated_data):
-        display_set = 'display_set' in validated_data
-        playlist = 'playlist' in validated_data
-        schedule = 'schedule' in validated_data
+        display_set = validated_data.get('display_set')
+        playlist = validated_data.get('playlist')
+        schedule = validated_data.get('schedule')
         validated_data.update({'company': self.context['request'].user.company})
-        if(playlist and schedule):
-            raise serializers.ValidationError("You can't create display group with both playlist and schedule or playlist")
-        if not (display_set) and not (playlist) and not (schedule):
+        if playlist and schedule:
+            raise serializers.ValidationError("You can't create display group with both playlist and schedule")
+        if not display_set and not playlist and not schedule:
             raise serializers.ValidationError("You must create display group with playlist or schedule")
         display_group = super().create(validated_data)
         return display_group

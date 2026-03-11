@@ -45,6 +45,7 @@ export const DisplayGroups = () => {
     requestStatus,
     deleteDisplayGroupId,
     deleteDataLoading,
+    postError,
   } = useSelector((state) => state.displayGroupsSlice);
   const playlistSlice = useSelector((state) => state.playListSlice);
   const scheduleSlice = useSelector((state) => state.scheduleSlice);
@@ -54,7 +55,14 @@ export const DisplayGroups = () => {
 
   const [radio, setRadio] = useState("1");
 
-  const toggleSetRadio = ({ target }) => setRadio(target.value);
+  const toggleSetRadio = ({ target }) => {
+    setRadio(target.value);
+    if (target.value === "1") {
+      form.setFieldsValue({ schedule: undefined });
+    } else if (target.value === "2") {
+      form.setFieldsValue({ playlist: undefined });
+    }
+  };
 
   const toggleEdit = () => {
     dispatch(toggleModal());
@@ -63,11 +71,16 @@ export const DisplayGroups = () => {
   const toggleDelete = useCallback((id = null) => dispatch(toggleDeleteModal(id !== null ? { open: true, id } : { open: false, id: null })), [dispatch]);
 
   const finish = useCallback((values) => {
+    if (radio === "1") {
+      delete values.schedule;
+    } else if (radio === "2") {
+      delete values.playlist;
+    }
     if (formValue.id) {
       values.id = formValue.id;
       dispatch(updateDisplayGroupData(values));
     } else dispatch(postDisplayGroupData(values));
-  }, [formValue.id, dispatch]);
+  }, [formValue.id, dispatch, radio]);
   const deleteDisplayType = useCallback(() =>
     dispatch(deleteDisplayGroupData(deleteDisplayGroupId)), [deleteDisplayGroupId, dispatch]);
   useEffect(() => {
@@ -87,6 +100,11 @@ export const DisplayGroups = () => {
       dispatch(fetchDisplayGroupData({ page: 1 }));
     }
   }, [requestStatus]);
+  useEffect(() => {
+    if (postError) {
+      form.setFields(postError);
+    }
+  }, [postError]);
   useEffect(() => {
     if (formValue.id) {
       if (formValue.playlist) setRadio("1");
