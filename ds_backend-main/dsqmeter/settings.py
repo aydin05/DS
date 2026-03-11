@@ -95,6 +95,9 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
 
 CORS_ALLOW_CREDENTIALS = True
 
+# Allow pages to be loaded in iframes (needed for Tizen SimpleUrlLauncher)
+X_FRAME_OPTIONS = 'ALLOWALL'
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',

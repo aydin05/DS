@@ -262,7 +262,7 @@ class HeartbeatAPIView(APIView):
 
         # Public player pages (OpenLink, TV Player, Tizen widget iframe) don't have
         # the display password, so we allow username-only heartbeats for these sources.
-        if source in ('openlink', 'tv-player', 'tizen'):
+        if source in ('openlink', 'tv-player', 'tizen', 'android-tv'):
             display = Display.objects.filter(username=username).last()
         else:
             if not password:

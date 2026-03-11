@@ -173,6 +173,10 @@ class ScheduleSerializer(ModelSerializer):
 
 
 class SchedulePlaylistSerializer(ModelSerializer):
+    playlist = serializers.PrimaryKeyRelatedField(
+        queryset=Playlist.objects.all(), required=False, allow_null=True
+    )
+
     class Meta:
         model = SchedulePlaylist
         fields = ("id", 'playlist', 'name', 'description', 'start_time', 'end_time', 'repeat', 'repeat_type','is_all_day')
@@ -187,8 +191,27 @@ class SchedulePlaylistSerializer(ModelSerializer):
             data['end_time'] = instance.end_time.astimezone(tz).strftime("%Y-%m-%d %H:%M:%S")
         return data
 
+    def validate(self, attrs):
+        schedule = get_object_or_404(Schedule, pk=self.context['view'].kwargs['schedule_id'])
+        company_tz_name = getattr(schedule.company, 'timezone', None)
+        tz = pytz.timezone(company_tz_name) if company_tz_name else default_tz
+        
+        for field in ['start_time', 'end_time']:
+            if field in attrs and attrs[field]:
+                dt = attrs[field]
+                if dt.tzinfo is None:
+                    attrs[field] = tz.localize(dt)
+                else:
+                    attrs[field] = dt.astimezone(tz).replace(tzinfo=tz)
+        
+        return attrs
+
     def create(self, validated_data):
         schedule = get_object_or_404(Schedule, pk=self.context['view'].kwargs['schedule_id'])
+        if not validated_data.get('playlist'):
+            validated_data['playlist'] = schedule.default_playlist
+        if not validated_data.get('playlist'):
+            raise serializers.ValidationError({'playlist': 'No playlist provided and schedule has no default playlist.'})
         validated_data.update({'schedule': schedule})
         schedule_playlist = super().create(validated_data)
         return schedule_playlist

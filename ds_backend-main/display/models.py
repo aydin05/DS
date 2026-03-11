@@ -18,8 +18,8 @@ class DisplayType(BaseModel):
 class DisplayGroup(BaseModel):
     name = models.CharField(_("Name"), max_length=100)
     description = models.TextField(_("Description"), null=True, blank=True)
-    playlist = models.ForeignKey('playlist.Playlist', on_delete=models.CASCADE, null=True,blank=True)
-    schedule = models.ForeignKey(("playlist.Schedule"), on_delete=models.CASCADE, null=True,blank=True)
+    playlist = models.ForeignKey('playlist.Playlist', on_delete=models.SET_NULL, null=True,blank=True)
+    schedule = models.ForeignKey(("playlist.Schedule"), on_delete=models.SET_NULL, null=True,blank=True)
     company = models.ForeignKey('account.Company', on_delete=models.CASCADE, null=True,blank=True)
 
     def __str__(self) -> str:
@@ -31,6 +31,7 @@ class Display(BaseModel):
         ('tizen', 'Tizen App'),
         ('openlink', 'Open Link (Browser)'),
         ('tv-player', 'TV Player (Vanilla)'),
+        ('android-tv', 'Android TV'),
         ('unknown', 'Unknown'),
     ]
 
@@ -39,8 +40,8 @@ class Display(BaseModel):
     display_type = models.ForeignKey(DisplayType, on_delete=models.CASCADE)
     username = models.CharField(_("Username"), max_length=100, db_index=True)
     password = models.CharField(_("Password"), max_length=100)
-    playlist = models.ForeignKey('playlist.Playlist', on_delete=models.CASCADE,null=True,blank=True)
-    schedule = models.ForeignKey("playlist.Schedule", on_delete=models.CASCADE, null=True, blank=True)
+    playlist = models.ForeignKey('playlist.Playlist', on_delete=models.SET_NULL,null=True,blank=True)
+    schedule = models.ForeignKey("playlist.Schedule", on_delete=models.SET_NULL, null=True, blank=True)
     branch = models.ForeignKey('branch.Branch', on_delete=models.CASCADE)
     company = models.ForeignKey('account.Company', on_delete=models.CASCADE)
     display_group = models.ForeignKey(DisplayGroup,on_delete=models.SET_NULL, null=True,blank=True)

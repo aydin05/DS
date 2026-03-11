@@ -80,9 +80,10 @@
             if (currentVideoUrl && MODE !== 'tizen') {
                 showVideo(currentVideoUrl);
             } else if (currentVideoUrl && MODE === 'tizen') {
-                // Send cached URL to parent on startup
+                // Send cached URL to parent on startup (force HTTP for Tizen compatibility)
                 var a = document.createElement('a'); a.href = currentVideoUrl;
-                try { window.parent.postMessage({ type: 'ds-video-url', url: a.href }, '*'); } catch(e) {}
+                var safeUrl = a.href.replace(/^https:/, 'http:');
+                try { window.parent.postMessage({ type: 'ds-video-url', url: safeUrl }, '*'); } catch(e) {}
             }
         } catch(e) {}
 
@@ -106,8 +107,10 @@
                             addLog('INFO', 'New video URL', { url: newUrl });
                             if (MODE === 'tizen') {
                                 // Resolve to full URL and send to parent widget for download
+                                // Force HTTP — Tizen 4 may not trust HTTPS certs
                                 var a = document.createElement('a'); a.href = newUrl;
-                                try { window.parent.postMessage({ type: 'ds-video-url', url: a.href }, '*'); } catch(e) {}
+                                var safeUrl = a.href.replace(/^https:/, 'http:');
+                                try { window.parent.postMessage({ type: 'ds-video-url', url: safeUrl }, '*'); } catch(e) {}
                             } else {
                                 showVideo(newUrl);
                             }
@@ -207,6 +210,7 @@
         // --- Logging ---
         var logBuffer = [];
         function addLog(level, message, data) {
+            if (logBuffer.length >= 50) logBuffer.shift();
             logBuffer.push({
                 timestamp: new Date().toISOString(),
                 level: level,
@@ -295,6 +299,13 @@
             // Periodic refresh
             fetchIntervalId = setInterval(fetchData, FETCH_INTERVAL);
             heartbeatIntervalId = setInterval(sendHeartbeat, HEARTBEAT_INTERVAL);
+
+            // In tizen mode, report connectivity to parent widget for red dot
+            if (MODE === 'tizen') {
+                setInterval(function() {
+                    try { window.parent.postMessage({ type: 'ds-connectivity', online: apiReachable }, '*'); } catch(e) {}
+                }, 5000);
+            }
         }
     </script>
 </body>

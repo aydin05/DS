@@ -109,12 +109,12 @@ const ManageSchedule = (props) => {
     });
   };
   const selectSlot = (event) => {
+    form.setFieldsValue({ playlist: formValue.default_playlist || undefined });
     toggle();
   };
   const finish = (values) => {
     values["start_time"] = dayjs(values.start_time).format();
     values["end_time"] = dayjs(values.end_time).format();
-    values["playlist"] = formValue.default_playlist;
     if (saveScheduleData.id) {
       values["id"] = saveScheduleData.id;
       dispatch(updateScheduleDateForm({ id: params.id, data: values }));
@@ -395,6 +395,23 @@ const ManageSchedule = (props) => {
               </Form.Item>
             )}
           </div>
+          <Form.Item
+            label="Playlist"
+            name="playlist"
+            rules={[{ required: true, message: "Playlist is required!" }]}
+          >
+            <Select
+              placeholder="Select playlist"
+              loading={playListSlice.isLoading}
+              style={{ width: "100%" }}
+            >
+              {playListSlice.data.map((item) => (
+                <Select.Option key={item.id} value={item.id}>
+                  {item.name}
+                </Select.Option>
+              ))}
+            </Select>
+          </Form.Item>
           <Form.Item label="Description" name="description">
             <Input placeholder="Enter description" />
           </Form.Item>

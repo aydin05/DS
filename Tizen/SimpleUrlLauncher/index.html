@@ -2,12 +2,51 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>Digital Signage</title>
     <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; font-family: Arial, sans-serif; }
+
+        /* Settings screen */
+        #settings {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            width: 100%; height: 100%; padding: 20px;
+        }
+        #settings .logo { margin-bottom: 32px; }
+        #settings h1 { color: #f8fafc; font-size: 48px; margin-bottom: 16px; }
+        #settings .subtitle { color: #94a3b8; font-size: 20px; margin-bottom: 40px; }
+        #settings .form-wrap { width: 100%; max-width: 700px; }
+        #url-input {
+            width: 100%; padding: 16px; font-size: 22px;
+            border: 2px solid #334155; border-radius: 12px;
+            background: #1e293b; color: #f8fafc; outline: none; margin-bottom: 16px;
+        }
+        #btn-connect {
+            padding: 16px 48px; font-size: 22px; font-weight: 600;
+            border: none; border-radius: 12px; background: #3b82f6;
+            color: #fff; cursor: pointer; outline: none;
+        }
+        #status { color: #94a3b8; font-size: 16px; margin-top: 24px; }
+
+        /* Full-screen responsive iframe */
+        #ds-frame {
+            display: none; position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; border: none; z-index: 1;
+        }
+
+        /* Key capture overlay */
+        #key-overlay {
+            display: none; position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; z-index: 2; background: transparent;
+        }
+    </style>
 </head>
-<body style="background:#0f172a; margin:0; padding:0; font-family:Arial,sans-serif;">
-    <div id="settings" style="text-align:center; padding-top:140px;">
-        <div style="margin-bottom:32px;">
+<body>
+    <!-- Settings screen -->
+    <div id="settings">
+        <div class="logo">
             <svg width="260" height="57" viewBox="0 0 200 44" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M60.543 29.8996C60.543 28.3664 61.7821 27.125 63.313 27.125C64.8462 27.125 66.0831 28.3641 66.0831 29.8996V43.7634H60.5519V29.8996H60.543Z" fill="#f8fafc"/>
                 <path d="M77.1481 29.9196C77.1481 22.2671 70.9524 16.0625 63.3112 16.0625C55.6699 16.0625 49.4766 22.2671 49.4766 29.9196V43.7677H55.0077V29.9196C55.0077 25.3267 58.7251 21.6049 63.3112 21.6049C67.8973 21.6049 71.6147 25.3267 71.6147 29.9196V43.7677H77.1458L77.1481 29.9196Z" fill="#f8fafc"/>
@@ -21,45 +60,30 @@
                 <path d="M40.0913 43.7468H33.1078L20.3125 30.8438H27.2871L27.3117 30.8684L40.0913 43.7468Z" fill="#f8fafc"/>
             </svg>
         </div>
-        <h1 style="color:#f8fafc; font-size:48px; margin-bottom:16px;">Digital Signage</h1>
-        <p style="color:#94a3b8; font-size:20px; margin-bottom:40px;">Enter the URL to display on this screen</p>
-        <div style="margin:0 auto; max-width:700px; padding:0 20px;">
-            <input id="url-input" type="text" value="http://aydin.technolink.az/tv-player.html?username=portrait"
-                style="width:100%; padding:16px; font-size:22px; border:2px solid #334155; border-radius:12px; background:#1e293b; color:#f8fafc; outline:none; margin-bottom:16px;" />
+        <h1>Digital Signage</h1>
+        <p class="subtitle">Enter the URL to display on this screen</p>
+        <div class="form-wrap" style="text-align:center;">
+            <input id="url-input" type="text" placeholder="https://aydin.technolink.az/tv-player.html?username=portrait" value="https://aydin.technolink.az/tv-player.html?username=portrait" />
             <br/>
-            <button id="btn-connect" style="padding:16px 48px; font-size:22px; font-weight:600; border:none; border-radius:12px; background:#3b82f6; color:#fff; cursor:pointer; outline:none;">Connect</button>
+            <button id="btn-connect">Connect</button>
         </div>
-        <p id="status" style="color:#94a3b8; font-size:16px; margin-top:24px;">Press DOWN to select Connect, ENTER to activate. Press 0 to sign out.</p>
+        <p id="status">Press DOWN to select Connect, ENTER to activate. Press 0 to return to settings.</p>
     </div>
 
-    <!-- Local video player (Tizen: always plays from local file) -->
-    <video id="local-video" autoplay muted playsinline
-        style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; object-fit:contain; background:#000; z-index:1;"></video>
-    <!-- Iframe for tv-player (Tizen: hidden, API/heartbeat only; non-Tizen: visible, handles video) -->
-    <iframe id="ds-frame" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; border:none; z-index:1;" allowfullscreen="true"></iframe>
-    <!-- Transparent overlay to capture remote key events -->
-    <div id="key-overlay" tabindex="0" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; z-index:2; background:transparent;"></div>
-    <!-- Download progress overlay -->
-    <div id="dl-overlay" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:#0f172a; z-index:5; text-align:center; padding-top:35%;">
-        <p style="color:#f8fafc; font-size:28px; font-family:Arial,sans-serif;">Downloading video...</p>
-        <p id="dl-progress" style="color:#94a3b8; font-size:20px; font-family:Arial,sans-serif; margin-top:12px;">0%</p>
-    </div>
-    <!-- Offline indicator (red dot, top-right) -->
-    <div id="offline-dot" style="display:none; position:absolute; top:16px; right:16px; width:16px; height:16px; border-radius:50%; background:#ef4444; z-index:10;"></div>
+    <!-- Full-screen responsive iframe -->
+    <iframe id="ds-frame" allowfullscreen="true" allow="autoplay; fullscreen; encrypted-media"></iframe>
+
+    <!-- Transparent overlay to capture remote key events while iframe is showing -->
+    <div id="key-overlay" tabindex="0"></div>
 
     <script>
         var urlInput = document.getElementById('url-input');
         var btnConnect = document.getElementById('btn-connect');
         var statusEl = document.getElementById('status');
+        var settingsEl = document.getElementById('settings');
         var dsFrame = document.getElementById('ds-frame');
         var keyOverlay = document.getElementById('key-overlay');
-        var localVideo = document.getElementById('local-video');
-        var offlineDot = document.getElementById('offline-dot');
-        var dlOverlay = document.getElementById('dl-overlay');
-        var dlProgress = document.getElementById('dl-progress');
         var isPlaying = false;
-        var IS_TIZEN = (navigator.userAgent.indexOf('Tizen') !== -1);
-        var IS_TIZEN4 = (navigator.userAgent.indexOf('Tizen 4') !== -1);
 
         // --- Register Samsung remote keys ---
         try {
@@ -71,6 +95,7 @@
             }
         } catch(e) {}
 
+        // --- Connect: load URL in full-screen iframe ---
         function doConnect() {
             try {
                 var url = urlInput.value.trim();
@@ -78,95 +103,49 @@
                 if (url.indexOf('http') !== 0) url = 'http://' + url;
                 statusEl.innerText = 'Loading: ' + url;
                 localStorage.setItem('ds_last_url', url);
-                document.getElementById('settings').style.display = 'none';
+                settingsEl.style.display = 'none';
+                dsFrame.style.display = 'block';
+                dsFrame.src = url;
+                keyOverlay.style.display = 'block';
+                keyOverlay.focus();
                 isPlaying = true;
-
-                if (IS_TIZEN) {
-                    // Tizen: download-first, play from local file
-                    var cachedPath = localStorage.getItem('ds_cached_path');
-                    if (cachedPath) {
-                        startLocalPlayback(cachedPath);
-                    }
-
-                    if (navigator.onLine) {
-                        // Load iframe hidden (API + heartbeat only)
-                        var sep = url.indexOf('?') > -1 ? '&' : '?';
-                        dsFrame.src = url + sep + 'mode=tizen&_t=' + Date.now();
-                        dsFrame.style.display = 'block';
-                        dsFrame.style.visibility = 'hidden';
-                    } else {
-                        offlineDot.style.display = 'block';
-                    }
-
-                    if (!cachedPath && !navigator.onLine) {
-                        statusEl.innerText = 'Offline — no cached content';
-                        document.getElementById('settings').style.display = 'block';
-                        offlineDot.style.display = 'block';
-                        return;
-                    }
-                    if (!cachedPath && navigator.onLine) {
-                        dlOverlay.style.display = 'block';
-                    }
-
-                    keyOverlay.style.display = 'block';
-                    keyOverlay.focus();
-                } else {
-                    // Non-Tizen: iframe handles everything
-                    dsFrame.style.display = 'block';
-                    keyOverlay.style.display = 'block';
-                    dsFrame.src = url;
-                    keyOverlay.focus();
-                }
             } catch(e) {
                 statusEl.innerText = 'Error: ' + e.message;
             }
         }
 
+        // --- Return to settings ---
         function showSettings() {
             isPlaying = false;
-            stopLocalPlayback();
             dsFrame.src = 'about:blank';
             dsFrame.style.display = 'none';
-            dsFrame.style.visibility = 'visible';
             keyOverlay.style.display = 'none';
-            offlineDot.style.display = 'none';
-            dlOverlay.style.display = 'none';
-            document.getElementById('settings').style.display = 'block';
+            settingsEl.style.display = 'flex';
             localStorage.removeItem('ds_last_url');
             focusedElement = 'input';
             highlightInput(true);
             highlightButton(false);
             urlInput.focus();
-            statusEl.innerText = 'Signed out. Press DOWN to select Connect, ENTER to activate.';
+            statusEl.innerText = 'Disconnected. Enter a URL and press Connect.';
         }
 
+        // --- Focus highlight helpers ---
         function highlightButton(on) {
-            if (on) {
-                btnConnect.style.background = '#2563eb';
-                btnConnect.style.boxShadow = '0 0 0 3px #60a5fa';
-            } else {
-                btnConnect.style.background = '#3b82f6';
-                btnConnect.style.boxShadow = 'none';
-            }
+            btnConnect.style.background = on ? '#2563eb' : '#3b82f6';
+            btnConnect.style.boxShadow = on ? '0 0 0 3px #60a5fa' : 'none';
         }
-
         function highlightInput(on) {
-            if (on) {
-                urlInput.style.borderColor = '#60a5fa';
-                urlInput.style.boxShadow = '0 0 0 3px rgba(96,165,250,0.3)';
-            } else {
-                urlInput.style.borderColor = '#334155';
-                urlInput.style.boxShadow = 'none';
-            }
+            urlInput.style.borderColor = on ? '#60a5fa' : '#334155';
+            urlInput.style.boxShadow = on ? '0 0 0 3px rgba(96,165,250,0.3)' : 'none';
         }
 
-        // D-pad navigation
+        // --- D-pad / remote navigation ---
         var focusedElement = 'input';
 
         document.addEventListener('keydown', function(e) {
             var key = e.keyCode;
 
-            // "0" on Samsung remote = keyCode 48
+            // "0" on Samsung remote = keyCode 48 → back to settings
             if (key === 48) {
                 e.preventDefault();
                 if (isPlaying) { showSettings(); }
@@ -186,7 +165,7 @@
                 return;
             }
 
-            // Settings screen navigation (only when not playing)
+            // Settings screen navigation
             if (!isPlaying) {
                 if (key === 40 && focusedElement === 'input') {
                     e.preventDefault();
@@ -214,18 +193,18 @@
             }
         });
 
-        // Keep overlay focused so keys always come to us
+        // Keep overlay focused so remote keys always reach us
         setInterval(function() {
             if (isPlaying && keyOverlay) {
                 try { keyOverlay.focus(); } catch(e) {}
             }
         }, 500);
 
-        // Initial state
+        // --- Initial state ---
         highlightInput(true);
         urlInput.focus();
 
-        // Auto-connect if URL was previously saved
+        // --- Auto-connect if URL was previously saved (survives TV power off) ---
         try {
             var lastUrl = localStorage.getItem('ds_last_url');
             if (lastUrl) {
@@ -233,166 +212,6 @@
                 doConnect();
             }
         } catch(e) {}
-
-        // ── Tizen: Download-first local playback ──
-
-        function startLocalPlayback(path) {
-            document.getElementById('settings').style.display = 'none';
-            dlOverlay.style.display = 'none';
-            localVideo.style.display = 'block';
-            keyOverlay.style.display = 'block';
-            keyOverlay.focus();
-
-            if (!IS_TIZEN4) localVideo.loop = true;
-            if (localVideo.getAttribute('data-path') !== path) {
-                localVideo.setAttribute('data-path', path);
-                localVideo.src = path;
-                localVideo.load();
-            }
-            try { localVideo.play(); } catch(e) {}
-        }
-
-        function stopLocalPlayback() {
-            try { localVideo.pause(); } catch(e) {}
-            localVideo.removeAttribute('data-path');
-            localVideo.src = '';
-            localVideo.style.display = 'none';
-        }
-
-        // Tizen 4: loop via load() (same approach, but from local file — no network hit)
-        if (IS_TIZEN4) {
-            localVideo.addEventListener('ended', function() {
-                localVideo.load();
-                try { localVideo.play(); } catch(e) {}
-            });
-            var _t4Last = -1, _t4Stall = 0;
-            setInterval(function() {
-                if (!localVideo.src || !localVideo.duration || isNaN(localVideo.duration)) return;
-                if (localVideo.currentTime === _t4Last && localVideo.currentTime > 0) {
-                    _t4Stall++;
-                    if (_t4Stall >= 2) {
-                        localVideo.load();
-                        try { localVideo.play(); } catch(e) {}
-                        _t4Stall = 0; _t4Last = -1;
-                    }
-                } else { _t4Stall = 0; }
-                _t4Last = localVideo.currentTime;
-            }, 1000);
-        }
-
-        // Network status (events + polling fallback for Tizen 4)
-        window.addEventListener('offline', function() {
-            if (isPlaying && IS_TIZEN) offlineDot.style.display = 'block';
-        });
-        window.addEventListener('online', function() {
-            offlineDot.style.display = 'none';
-            // Ensure iframe is running for API when back online
-            if (isPlaying && IS_TIZEN && (!dsFrame.src || dsFrame.src === 'about:blank')) {
-                var url = urlInput.value.trim();
-                if (url) {
-                    if (url.indexOf('http') !== 0) url = 'http://' + url;
-                    var sep = url.indexOf('?') > -1 ? '&' : '?';
-                    dsFrame.src = url + sep + 'mode=tizen&_t=' + Date.now();
-                    dsFrame.style.display = 'block';
-                    dsFrame.style.visibility = 'hidden';
-                }
-            }
-        });
-        // Connectivity ping: navigator.onLine unreliable on Tizen 4
-        if (IS_TIZEN) {
-            setInterval(function() {
-                if (!isPlaying) return;
-                try {
-                    var saved = localStorage.getItem('ds_last_url') || '';
-                    if (!saved) return;
-                    var m = saved.match(/^(https?:\/\/[^\/]+)/);
-                    if (!m) return;
-                    var xhr = new XMLHttpRequest();
-                    xhr.open('HEAD', m[1] + '/favicon.ico?_t=' + Date.now(), true);
-                    xhr.timeout = 5000;
-                    xhr.onload = function() { offlineDot.style.display = 'none'; };
-                    xhr.onerror = function() { offlineDot.style.display = 'block'; };
-                    xhr.ontimeout = function() { offlineDot.style.display = 'block'; };
-                    xhr.send();
-                } catch(e) {}
-            }, 10000);
-        }
-
-        // Receive video URL from iframe → download and cache
-        var _dlBusy = false;
-        window.addEventListener('message', function(e) {
-            if (!e.data || e.data.type !== 'ds-video-url') return;
-            if (!IS_TIZEN || !e.data.url) return;
-            handleVideoUrl(e.data.url);
-        });
-
-        function handleVideoUrl(url) {
-            var cachedUrl = localStorage.getItem('ds_cached_url');
-            var cachedPath = localStorage.getItem('ds_cached_path');
-            if (cachedUrl === url && cachedPath) {
-                // Already cached — play if not already
-                if (localVideo.style.display === 'none') {
-                    startLocalPlayback(cachedPath);
-                }
-                return;
-            }
-            // New video — download first
-            downloadVideo(url);
-        }
-
-        function downloadVideo(url) {
-            if (_dlBusy) return;
-            if (typeof tizen === 'undefined' || !tizen.filesystem) return;
-            _dlBusy = true;
-            dlOverlay.style.display = 'block';
-            dlProgress.innerText = '0%';
-
-            var xhr = new XMLHttpRequest();
-            xhr.open('GET', url, true);
-            xhr.responseType = 'arraybuffer';
-            xhr.timeout = 300000;
-            xhr.onprogress = function(ev) {
-                if (ev.lengthComputable) {
-                    dlProgress.innerText = Math.round((ev.loaded / ev.total) * 100) + '%';
-                }
-            };
-            xhr.onload = function() {
-                _dlBusy = false;
-                if (xhr.status !== 200) { dlOverlay.style.display = 'none'; return; }
-                saveToDisk(url, xhr.response);
-            };
-            xhr.onerror = function() { _dlBusy = false; dlOverlay.style.display = 'none'; };
-            xhr.ontimeout = function() { _dlBusy = false; dlOverlay.style.display = 'none'; };
-            xhr.send();
-        }
-
-        function saveToDisk(url, buffer) {
-            try {
-                tizen.filesystem.resolve('wgt-private', function(dir) {
-                    try {
-                        try { dir.deleteFile(dir.fullPath + '/cached_video.mp4'); } catch(e) {}
-                        var file = dir.createFile('cached_video.mp4');
-                        file.openStream('w', function(stream) {
-                            stream.writeBase64(bufToBase64(buffer));
-                            stream.close();
-                            var path = file.toURI();
-                            localStorage.setItem('ds_cached_url', url);
-                            localStorage.setItem('ds_cached_path', path);
-                            startLocalPlayback(path);
-                        }, function() { dlOverlay.style.display = 'none'; });
-                    } catch(e) { dlOverlay.style.display = 'none'; }
-                }, function() { dlOverlay.style.display = 'none'; }, 'rw');
-            } catch(e) { dlOverlay.style.display = 'none'; }
-        }
-
-        function bufToBase64(buf) {
-            var bin = '', bytes = new Uint8Array(buf), len = bytes.length;
-            for (var i = 0; i < len; i += 8192) {
-                var end = Math.min(i + 8192, len);
-                for (var j = i; j < end; j++) bin += String.fromCharCode(bytes[j]);
-            }
-            return window.btoa(bin);
-        }
 
     </script>
 </body>
