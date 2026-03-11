@@ -77,9 +77,13 @@ class PlaylistSerializer(ModelSerializer):
         instance.company = self.context['request'].user.company
         instance.name = validated_data.get('name', instance.name)
         instance.description = validated_data.get('description', instance.description)
-        display_type = validated_data.get('default_display_type', None)
-        if display_type is not None:
-            instance.default_display_type = display_type
+        display_type_id = self.initial_data.get('default_display_type', None)
+        if display_type_id is not None:
+            try:
+                display_type = DisplayType.objects.get(id=int(display_type_id))
+                instance.default_display_type = display_type
+            except (DisplayType.DoesNotExist, ValueError, TypeError):
+                raise serializers.ValidationError({'default_display_type': 'Invalid display type'})
         instance.save()
         return instance
 

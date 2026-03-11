@@ -130,6 +130,15 @@ class DisplayGroupCreateSerializer(ModelSerializer):
         self.fields['playlist'].required = False
         self.fields['schedule'].required = False
 
+    def validate_name(self, value):
+        company = self.context['request'].user.company
+        qs = DisplayGroup.objects.filter(name__iexact=value, company=company)
+        if self.instance:
+            qs = qs.exclude(id=self.instance.id)
+        if qs.exists():
+            raise serializers.ValidationError("Display group with this name already exists")
+        return value
+
     def create(self, validated_data):
         display_set = validated_data.get('display_set')
         playlist = validated_data.get('playlist')

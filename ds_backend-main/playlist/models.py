@@ -11,7 +11,7 @@ class Playlist(BaseModel):
     name = models.CharField(_("Name"), max_length=100)
     description = models.TextField(_("Description"), null=True, blank=True)
     company = models.ForeignKey('account.Company', on_delete=models.CASCADE)
-    default_display_type = models.ForeignKey('display.DisplayType', on_delete=models.CASCADE)
+    default_display_type = models.ForeignKey('display.DisplayType', on_delete=models.PROTECT)
     extra_fields = JSONField(default=list, blank=True) 
 
     def __str__(self):
