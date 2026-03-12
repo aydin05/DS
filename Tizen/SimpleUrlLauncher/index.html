@@ -30,12 +30,14 @@
         }
         #status { color: #94a3b8; font-size: 16px; margin-top: 24px; }
 
-        /* Fullscreen video player (on top of everything except overlay) */
-        #local-video {
+        /* Fullscreen video players (dual for seamless swap on Tizen 7) */
+        #local-video-a, #local-video-b {
             display: none; position: absolute; top: 0; left: 0;
             width: 100%; height: 100%; object-fit: contain;
-            background: #000; z-index: 5;
+            background: #000;
         }
+        #local-video-a { z-index: 6; }
+        #local-video-b { z-index: 5; }
 
         /* Red dot — offline indicator */
         #offline-dot {
@@ -86,8 +88,9 @@
         <p id="status">Press DOWN to select Connect, ENTER to activate. Press 0 to return to settings.</p>
     </div>
 
-    <!-- Fullscreen local video player -->
-    <video id="local-video" autoplay muted playsinline></video>
+    <!-- Fullscreen local video players (dual for Tizen 7 seamless swap) -->
+    <video id="local-video-a" autoplay muted playsinline></video>
+    <video id="local-video-b" muted playsinline></video>
 
     <!-- Red dot for offline -->
     <div id="offline-dot"></div>
@@ -104,7 +107,8 @@
         var statusEl = document.getElementById('status');
         var settingsEl = document.getElementById('settings');
         var dsFrame = document.getElementById('ds-frame');
-        var localVideo = document.getElementById('local-video');
+        var vidA = document.getElementById('local-video-a');
+        var vidB = document.getElementById('local-video-b');
         var offlineDot = document.getElementById('offline-dot');
         var keyOverlay = document.getElementById('key-overlay');
 
@@ -115,6 +119,10 @@
         var IS_TIZEN4 = (navigator.userAgent.indexOf('Tizen 4') !== -1);
         var LOCAL_DIR = 'wgt-private';  // persists across app restarts (NOT tmp!)
         var LOCAL_FILENAME = 'ds_video.mp4';
+
+        // --- Dual-video state (Tizen 7 seamless swap) ---
+        var activeVid = vidA;
+        var standbyVid = vidB;
 
         // --- Tizen filesystem helpers ---
         function resolveLocalPath(cb) {
@@ -229,39 +237,82 @@
             if (!filePath) return;
             localVideoPath = filePath;
             localStorage.setItem('ds_local_video_path', filePath);
-            localVideo.style.display = 'block';
-            // Only reload if src changed
-            if (localVideo.src !== filePath) {
-                localVideo.src = filePath;
-                localVideo.load();
+
+            activeVid.style.display = 'block';
+            if (activeVid.src !== filePath) {
+                activeVid.src = filePath;
+                activeVid.load();
             }
-            try { localVideo.play(); } catch(e) {}
+            try { activeVid.play(); } catch(e) {}
+
+            // Tizen 7+: preload standby element for seamless swap
+            if (!IS_TIZEN4) {
+                preloadStandby(filePath);
+            }
         }
 
-        // --- Tizen 4 loop workaround: vid.load() on ended ---
-        // Works offline because the file is LOCAL (no network needed)
-        localVideo.addEventListener('ended', function() {
-            console.log('[Video] ended, restarting from local file');
-            localVideo.load();
-            try { localVideo.play(); } catch(e) {}
-        });
+        // Preload the standby video element so it's ready to swap instantly
+        function preloadStandby(filePath) {
+            if (!filePath) return;
+            standbyVid.src = filePath;
+            standbyVid.load();
+            // Keep hidden but decoded — ready to show
+            standbyVid.style.display = 'block';
+            standbyVid.style.visibility = 'hidden';
+        }
 
-        localVideo.addEventListener('error', function() {
-            var err = localVideo.error ? localVideo.error.message || localVideo.error.code : 'unknown';
-            console.error('[Video] error:', err, 'src:', localVideo.src);
-            // File might be missing (deleted after reboot) — clear remote URL
-            // so next iframe message triggers a fresh re-download
+        // Swap active ↔ standby (Tizen 7 seamless transition)
+        function swapVideos() {
+            var tmp = activeVid;
+            activeVid = standbyVid;
+            standbyVid = tmp;
+
+            // Show new active on top, hide old
+            activeVid.style.zIndex = 6;
+            activeVid.style.visibility = 'visible';
+            standbyVid.style.zIndex = 5;
+
+            try { activeVid.play(); } catch(e) {}
+
+            // After swap is visible, preload standby for next loop
+            setTimeout(function() {
+                standbyVid.style.visibility = 'hidden';
+                if (localVideoPath) {
+                    preloadStandby(localVideoPath);
+                }
+            }, 200);
+        }
+
+        // --- ended handler ---
+        function onVideoEnded() {
+            console.log('[Video] ended, tizen4=' + IS_TIZEN4);
+            if (IS_TIZEN4) {
+                // Tizen 4: single decoder, just reload
+                this.load();
+                try { this.play(); } catch(e) {}
+            } else {
+                // Tizen 7+: seamless swap to preloaded standby
+                swapVideos();
+            }
+        }
+        vidA.addEventListener('ended', onVideoEnded);
+        vidB.addEventListener('ended', onVideoEnded);
+
+        // --- error handler ---
+        function onVideoError() {
+            var err = this.error ? this.error.message || this.error.code : 'unknown';
+            console.error('[Video] error:', err, 'src:', this.src);
             currentRemoteUrl = null;
             localStorage.removeItem('ds_remote_video_url');
-            // Retry after 3s — file might still be writing, or iframe may send URL soon
+            var self = this;
             setTimeout(function() {
                 if (localVideoPath) {
                     checkLocalFileExists(function(exists, path) {
                         if (exists) {
                             console.log('[Video] File exists, retrying playback');
-                            localVideo.src = path;
-                            localVideo.load();
-                            try { localVideo.play(); } catch(e) {}
+                            self.src = path;
+                            self.load();
+                            try { self.play(); } catch(e) {}
                         } else {
                             console.warn('[Video] Local file missing, waiting for re-download');
                             localVideoPath = null;
@@ -270,23 +321,25 @@
                     });
                 }
             }, 3000);
-        });
+        }
+        vidA.addEventListener('error', onVideoError);
+        vidB.addEventListener('error', onVideoError);
 
-        // Stall detection
+        // Stall detection (monitors active video)
         var _lastTime = -1, _stallCount = 0;
         setInterval(function() {
-            if (!localVideo.src || !localVideo.duration || localVideo.error) return;
-            if (localVideo.currentTime === _lastTime && localVideo.currentTime > 0) {
+            if (!activeVid.src || !activeVid.duration || activeVid.error) return;
+            if (activeVid.currentTime === _lastTime && activeVid.currentTime > 0) {
                 _stallCount++;
                 if (_stallCount >= 3) {
                     console.log('[Video] stall detected, restarting');
-                    localVideo.load();
-                    try { localVideo.play(); } catch(e) {}
+                    activeVid.load();
+                    try { activeVid.play(); } catch(e) {}
                     _stallCount = 0;
                     _lastTime = -1;
                 }
             } else { _stallCount = 0; }
-            _lastTime = localVideo.currentTime;
+            _lastTime = activeVid.currentTime;
         }, 1000);
 
         // --- Listen for messages from iframe (tv-player.html?mode=tizen) ---
@@ -372,9 +425,9 @@
             isPlaying = false;
             dsFrame.src = 'about:blank';
             dsFrame.style.display = 'none';
-            localVideo.pause();
-            localVideo.src = '';
-            localVideo.style.display = 'none';
+            vidA.pause(); vidA.src = ''; vidA.style.display = 'none';
+            vidB.pause(); vidB.src = ''; vidB.style.display = 'none';
+            activeVid = vidA; standbyVid = vidB;
             offlineDot.style.display = 'none';
             keyOverlay.style.display = 'none';
             settingsEl.style.display = 'flex';
