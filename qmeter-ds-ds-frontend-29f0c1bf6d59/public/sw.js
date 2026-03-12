@@ -10,7 +10,7 @@
 const CACHE_NAME = "ds-openlink-v1";
 
 // Assets that make up the app shell — populated on install
-const APP_SHELL = ["/"];
+const APP_SHELL = ["/", "/tv-player.html"];
 
 // ── Install: pre-cache app shell ──
 self.addEventListener("install", (event) => {
@@ -41,7 +41,8 @@ self.addEventListener("fetch", (event) => {
   // 1) Merged video files — network-first, cache fallback
   if (
     url.pathname.includes("/merged_videos/") ||
-    url.pathname.includes("/media/merged_videos/")
+    url.pathname.includes("/media/merged_videos/") ||
+    /\.(mp4|webm)(\?|$)/i.test(url.pathname)
   ) {
     event.respondWith(networkFirstVideo(event.request));
     return;
@@ -72,17 +73,24 @@ self.addEventListener("fetch", (event) => {
 
 async function networkFirstVideo(request) {
   const cache = await caches.open(CACHE_NAME);
+  // Use URL-only key so Range headers don't fragment the cache
+  const cacheKey = new Request(request.url);
   try {
     const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      // Clone and cache the video response
-      cache.put(request, networkResponse.clone());
+    // Only cache full (200) responses — skip 206 partial responses
+    if (networkResponse.status === 200) {
+      cache.put(cacheKey, networkResponse.clone());
     }
     return networkResponse;
   } catch (err) {
-    // Network failed — try cache
-    const cached = await cache.match(request);
+    // Network failed — try cache (match by URL only)
+    const cached = await cache.match(cacheKey);
     if (cached) {
+      // If the browser sent a Range header, slice the cached full response
+      const rangeHeader = request.headers.get("range");
+      if (rangeHeader) {
+        return createRangeResponse(cached, rangeHeader);
+      }
       return cached;
     }
     // Nothing cached either — return a 503
@@ -91,6 +99,29 @@ async function networkFirstVideo(request) {
       statusText: "Service Unavailable",
     });
   }
+}
+
+// Slice a full cached response into a 206 Partial Content response
+async function createRangeResponse(cachedResponse, rangeHeader) {
+  const blob = await cachedResponse.blob();
+  const totalSize = blob.size;
+  const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+  if (!match) return cachedResponse;
+
+  const start = parseInt(match[1], 10);
+  const end = match[2] ? parseInt(match[2], 10) : totalSize - 1;
+  const slice = blob.slice(start, end + 1);
+
+  return new Response(slice, {
+    status: 206,
+    statusText: "Partial Content",
+    headers: {
+      "Content-Range": "bytes " + start + "-" + end + "/" + totalSize,
+      "Content-Length": slice.size,
+      "Content-Type": cachedResponse.headers.get("Content-Type") || "video/mp4",
+      "Accept-Ranges": "bytes",
+    },
+  });
 }
 
 async function cacheFirstWithNetworkUpdate(request) {

@@ -40,6 +40,54 @@
     <div id="waiting-msg">Loading...</div>
 
     <script>
+        // --- Register Service Worker for offline caching ---
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                console.log('[SW] Registered, scope:', reg.scope);
+            }).catch(function(err) {
+                console.warn('[SW] Registration failed:', err.message);
+            });
+        }
+
+        // --- Pre-cache video for offline use (full fetch, no Range header) ---
+        var VIDEO_CACHE_NAME = 'ds-openlink-v1';
+        function preCacheVideo(url) {
+            if (!('caches' in window)) return;
+            caches.open(VIDEO_CACHE_NAME).then(function(cache) {
+                cache.match(url).then(function(existing) {
+                    if (existing && existing.status === 200) {
+                        videoCached = true;
+                        console.log('[Cache] Video already cached');
+                        return;
+                    }
+                    // Fetch full video (no Range header) — goes to network
+                    fetch(url, { cache: 'no-cache' }).then(function(resp) {
+                        if (resp.ok && resp.status === 200) {
+                            cache.put(url, resp).then(function() {
+                                videoCached = true;
+                                console.log('[Cache] Video pre-cached OK, size:', resp.headers.get('content-length'));
+                                addLog('INFO', 'Video pre-cached for offline', { url: url, size: resp.headers.get('content-length') });
+                            });
+                        } else {
+                            console.warn('[Cache] Unexpected response status:', resp.status);
+                            addLog('WARN', 'Pre-cache unexpected status', { status: resp.status, url: url });
+                        }
+                    }).catch(function(e) {
+                        console.warn('[Cache] Pre-cache fetch failed:', e.message);
+                        addLog('WARN', 'Pre-cache fetch failed', { error: e.message });
+                    });
+                }).catch(function() {});
+            }).catch(function() {});
+        }
+
+        // Check if a URL is in the cache (returns via callback)
+        function isVideoInCache(url, cb) {
+            if (!('caches' in window)) return cb(false);
+            caches.open(VIDEO_CACHE_NAME).then(function(cache) {
+                cache.match(url).then(function(r) { cb(!!r); }).catch(function() { cb(false); });
+            }).catch(function() { cb(false); });
+        }
+
         // --- Configuration ---
         var API_BASE = '/api/v1/';
         var FETCH_INTERVAL = 30000;
@@ -71,6 +119,7 @@
         var apiReachable = true;
         var fetchIntervalId = null;
         var heartbeatIntervalId = null;
+        var videoCached = false;
 
         // --- Cached video URL (offline fallback) ---
         var LS_KEY = 'ds_tv_video_' + username;
@@ -164,27 +213,78 @@
                 video.load();
                 try { video.play(); } catch(e) {}
             }
+            // Pre-cache full video for offline playback
+            preCacheVideo(url);
             // Send resolved URL to parent widget for offline caching
             try { window.parent.postMessage({ type: 'ds-video-url', url: video.src }, '*'); } catch(e) {}
         }
 
         // Tizen 4: loop and seeking broken on hardware decoder.
-        // Restart via load() on ended (fastest detection).
+        // Restart via load() on ended. Offline: retry from SW cache with backoff.
         if (IS_TIZEN4) {
             var vid = document.getElementById('player-video');
-            vid.addEventListener('ended', function() {
+            var _offlineRetries = 0;
+            var _maxRetries = 10;
+            var _retryTimer = null;
+
+            function t4Restart() {
+                console.log('[T4] restart, offline=' + !navigator.onLine + ', cached=' + videoCached);
                 vid.load();
                 try { vid.play(); } catch(e) {}
+            }
+
+            // Normal ended → restart (loop workaround)
+            vid.addEventListener('ended', function() {
+                _offlineRetries = 0;
+                t4Restart();
             });
-            // Safety: if stalled for 2s, also restart
+
+            // Error handler — critical for offline recovery
+            vid.addEventListener('error', function() {
+                var errMsg = vid.error ? vid.error.message || vid.error.code : 'unknown';
+                console.error('[T4] Video error:', errMsg);
+                addLog('ERROR', 'Video error', { error: errMsg, online: navigator.onLine, cached: videoCached });
+
+                if (_retryTimer) clearTimeout(_retryTimer);
+
+                // If online, just retry once quickly
+                if (navigator.onLine && apiReachable) {
+                    _retryTimer = setTimeout(t4Restart, 2000);
+                    return;
+                }
+
+                // Offline — check cache and retry with backoff
+                _offlineRetries++;
+                if (_offlineRetries > _maxRetries) {
+                    addLog('ERROR', 'Max offline retries reached');
+                    return;
+                }
+
+                var delay = Math.min(_offlineRetries * 2000, 10000);
+                isVideoInCache(vid.src, function(inCache) {
+                    if (inCache) {
+                        addLog('INFO', 'Cache hit, retry #' + _offlineRetries + ' in ' + delay + 'ms');
+                        _retryTimer = setTimeout(t4Restart, delay);
+                    } else {
+                        addLog('WARN', 'Video NOT in cache, cannot play offline');
+                        document.getElementById('waiting-msg').innerText = 'Offline — video not cached';
+                        document.getElementById('waiting-msg').style.display = 'block';
+                    }
+                });
+            });
+
+            // Safety: stall + error state detection every 1s
             var _t4Last = -1, _t4Stall = 0;
             setInterval(function() {
-                if (!vid.src || !vid.duration || isNaN(vid.duration)) return;
+                if (!vid.src) return;
+                // If in error state (duration is NaN), let the error handler deal with it
+                if (vid.error) return;
+                if (!vid.duration || isNaN(vid.duration)) return;
                 if (vid.currentTime === _t4Last && vid.currentTime > 0) {
                     _t4Stall++;
-                    if (_t4Stall >= 2) {
-                        vid.load();
-                        try { vid.play(); } catch(e) {}
+                    if (_t4Stall >= 3) {
+                        addLog('WARN', 'Stall detected at ' + vid.currentTime);
+                        t4Restart();
                         _t4Stall = 0;
                         _t4Last = -1;
                     }

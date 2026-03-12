@@ -7,12 +7,12 @@
     <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { width: 100%; height: 100%; overflow: hidden; background: #0f172a; font-family: Arial, sans-serif; }
+        html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: Arial, sans-serif; }
 
         /* Settings screen */
         #settings {
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            width: 100%; height: 100%; padding: 20px;
+            width: 100%; height: 100%; padding: 20px; background: #0f172a;
         }
         #settings .logo { margin-bottom: 32px; }
         #settings h1 { color: #f8fafc; font-size: 48px; margin-bottom: 16px; }
@@ -30,16 +30,32 @@
         }
         #status { color: #94a3b8; font-size: 16px; margin-top: 24px; }
 
-        /* Full-screen responsive iframe */
+        /* Fullscreen video player (on top of everything except overlay) */
+        #local-video {
+            display: none; position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; object-fit: contain;
+            background: #000; z-index: 5;
+        }
+
+        /* Red dot — offline indicator */
+        #offline-dot {
+            display: none; position: absolute; top: 16px; right: 16px;
+            width: 16px; height: 16px; border-radius: 50%;
+            background: #ef4444; z-index: 20;
+            box-shadow: 0 0 6px 2px rgba(239, 68, 68, 0.6);
+        }
+
+        /* Hidden iframe for API polling (behind video) */
         #ds-frame {
             display: none; position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%; border: none; z-index: 1;
+            width: 1px; height: 1px; border: none; z-index: 0;
+            opacity: 0; pointer-events: none;
         }
 
         /* Key capture overlay */
         #key-overlay {
             display: none; position: absolute; top: 0; left: 0;
-            width: 100%; height: 100%; z-index: 2; background: transparent;
+            width: 100%; height: 100%; z-index: 10; background: transparent;
         }
     </style>
 </head>
@@ -70,10 +86,16 @@
         <p id="status">Press DOWN to select Connect, ENTER to activate. Press 0 to return to settings.</p>
     </div>
 
-    <!-- Full-screen responsive iframe -->
+    <!-- Fullscreen local video player -->
+    <video id="local-video" autoplay muted playsinline></video>
+
+    <!-- Red dot for offline -->
+    <div id="offline-dot"></div>
+
+    <!-- Hidden iframe — only for API polling / heartbeat -->
     <iframe id="ds-frame" allowfullscreen="true" allow="autoplay; fullscreen; encrypted-media"></iframe>
 
-    <!-- Transparent overlay to capture remote key events while iframe is showing -->
+    <!-- Transparent overlay to capture remote key events -->
     <div id="key-overlay" tabindex="0"></div>
 
     <script>
@@ -82,8 +104,214 @@
         var statusEl = document.getElementById('status');
         var settingsEl = document.getElementById('settings');
         var dsFrame = document.getElementById('ds-frame');
+        var localVideo = document.getElementById('local-video');
+        var offlineDot = document.getElementById('offline-dot');
         var keyOverlay = document.getElementById('key-overlay');
+
         var isPlaying = false;
+        var currentRemoteUrl = null;   // URL from server (for change detection)
+        var localVideoPath = null;     // Tizen filesystem path currently playing
+        var isDownloading = false;
+        var IS_TIZEN4 = (navigator.userAgent.indexOf('Tizen 4') !== -1);
+        var LOCAL_DIR = 'wgt-private';  // persists across app restarts (NOT tmp!)
+        var LOCAL_FILENAME = 'ds_video.mp4';
+
+        // --- Tizen filesystem helpers ---
+        function resolveLocalPath(cb) {
+            try {
+                tizen.filesystem.resolve(LOCAL_DIR, function(dir) {
+                    cb(dir.toURI() + '/' + LOCAL_FILENAME);
+                }, function(err) {
+                    console.error('[FS] resolve error:', err.message);
+                    cb(null);
+                }, 'rw');
+            } catch(e) {
+                console.error('[FS] resolve exception:', e.message);
+                cb(null);
+            }
+        }
+
+        // Check if local video file exists (callback: true/false)
+        function checkLocalFileExists(cb) {
+            try {
+                tizen.filesystem.resolve(LOCAL_DIR, function(dir) {
+                    try {
+                        var files = dir.listFiles();
+                        for (var i = 0; i < files.length; i++) {
+                            if (files[i].name === LOCAL_FILENAME) {
+                                cb(true, dir.toURI() + '/' + LOCAL_FILENAME);
+                                return;
+                            }
+                        }
+                        cb(false, null);
+                    } catch(e) {
+                        cb(false, null);
+                    }
+                }, function() { cb(false, null); }, 'r');
+            } catch(e) {
+                cb(false, null);
+            }
+        }
+
+        function downloadVideoToLocal(url, onDone) {
+            if (isDownloading) return;
+            isDownloading = true;
+            console.log('[DL] Downloading:', url);
+
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', url, true);
+            xhr.responseType = 'arraybuffer';
+            xhr.timeout = 300000; // 5 min for large files
+
+            xhr.onload = function() {
+                if (xhr.status === 200) {
+                    writeToFilesystem(xhr.response, onDone);
+                } else {
+                    console.error('[DL] HTTP error:', xhr.status);
+                    isDownloading = false;
+                    onDone(null);
+                }
+            };
+            xhr.onerror = function() {
+                console.error('[DL] Network error');
+                isDownloading = false;
+                onDone(null);
+            };
+            xhr.ontimeout = function() {
+                console.error('[DL] Timeout');
+                isDownloading = false;
+                onDone(null);
+            };
+            xhr.send();
+        }
+
+        function writeToFilesystem(arrayBuffer, onDone) {
+            try {
+                tizen.filesystem.resolve(LOCAL_DIR, function(dir) {
+                    // Delete old file if exists
+                    try { dir.deleteFile(dir.toURI() + '/' + LOCAL_FILENAME); } catch(e) {}
+
+                    var file = dir.createFile(LOCAL_FILENAME);
+                    var filePath = file.toURI();
+
+                    file.openStream('w', function(stream) {
+                        var bytes = new Uint8Array(arrayBuffer);
+                        // Write in chunks — convert to plain array for Tizen 4 compat
+                        var chunkSize = 1024 * 64; // 64KB chunks (safe for Tizen stream)
+                        for (var i = 0; i < bytes.length; i += chunkSize) {
+                            var end = Math.min(i + chunkSize, bytes.length);
+                            var chunk = Array.prototype.slice.call(bytes.subarray(i, end));
+                            stream.writeBytes(chunk);
+                        }
+                        stream.close();
+                        console.log('[FS] Video saved, size:', bytes.length, 'path:', filePath);
+                        isDownloading = false;
+                        onDone(filePath);
+                    }, function(err) {
+                        console.error('[FS] writeStream error:', err.message);
+                        isDownloading = false;
+                        onDone(null);
+                    }, 'UTF-8');
+                }, function(err) {
+                    console.error('[FS] resolve error:', err.message);
+                    isDownloading = false;
+                    onDone(null);
+                }, 'rw');
+            } catch(e) {
+                console.error('[FS] exception:', e.message);
+                isDownloading = false;
+                onDone(null);
+            }
+        }
+
+        // --- Play video from local file ---
+        function playLocalVideo(filePath) {
+            if (!filePath) return;
+            localVideoPath = filePath;
+            localStorage.setItem('ds_local_video_path', filePath);
+            localVideo.style.display = 'block';
+            // Only reload if src changed
+            if (localVideo.src !== filePath) {
+                localVideo.src = filePath;
+                localVideo.load();
+            }
+            try { localVideo.play(); } catch(e) {}
+        }
+
+        // --- Tizen 4 loop workaround: vid.load() on ended ---
+        // Works offline because the file is LOCAL (no network needed)
+        localVideo.addEventListener('ended', function() {
+            console.log('[Video] ended, restarting from local file');
+            localVideo.load();
+            try { localVideo.play(); } catch(e) {}
+        });
+
+        localVideo.addEventListener('error', function() {
+            var err = localVideo.error ? localVideo.error.message || localVideo.error.code : 'unknown';
+            console.error('[Video] error:', err, 'src:', localVideo.src);
+            // File might be missing (deleted after reboot) — clear remote URL
+            // so next iframe message triggers a fresh re-download
+            currentRemoteUrl = null;
+            localStorage.removeItem('ds_remote_video_url');
+            // Retry after 3s — file might still be writing, or iframe may send URL soon
+            setTimeout(function() {
+                if (localVideoPath) {
+                    checkLocalFileExists(function(exists, path) {
+                        if (exists) {
+                            console.log('[Video] File exists, retrying playback');
+                            localVideo.src = path;
+                            localVideo.load();
+                            try { localVideo.play(); } catch(e) {}
+                        } else {
+                            console.warn('[Video] Local file missing, waiting for re-download');
+                            localVideoPath = null;
+                            localStorage.removeItem('ds_local_video_path');
+                        }
+                    });
+                }
+            }, 3000);
+        });
+
+        // Stall detection
+        var _lastTime = -1, _stallCount = 0;
+        setInterval(function() {
+            if (!localVideo.src || !localVideo.duration || localVideo.error) return;
+            if (localVideo.currentTime === _lastTime && localVideo.currentTime > 0) {
+                _stallCount++;
+                if (_stallCount >= 3) {
+                    console.log('[Video] stall detected, restarting');
+                    localVideo.load();
+                    try { localVideo.play(); } catch(e) {}
+                    _stallCount = 0;
+                    _lastTime = -1;
+                }
+            } else { _stallCount = 0; }
+            _lastTime = localVideo.currentTime;
+        }, 1000);
+
+        // --- Listen for messages from iframe (tv-player.html?mode=tizen) ---
+        window.addEventListener('message', function(e) {
+            if (!e.data || !e.data.type) return;
+
+            if (e.data.type === 'ds-video-url') {
+                var remoteUrl = e.data.url;
+                console.log('[MSG] Video URL from iframe:', remoteUrl);
+                if (remoteUrl && remoteUrl !== currentRemoteUrl) {
+                    currentRemoteUrl = remoteUrl;
+                    localStorage.setItem('ds_remote_video_url', remoteUrl);
+                    // Download new video to local filesystem
+                    downloadVideoToLocal(remoteUrl, function(filePath) {
+                        if (filePath) {
+                            playLocalVideo(filePath);
+                        }
+                    });
+                }
+            }
+
+            if (e.data.type === 'ds-connectivity') {
+                offlineDot.style.display = e.data.online ? 'none' : 'block';
+            }
+        });
 
         // --- Register Samsung remote keys ---
         try {
@@ -95,12 +323,18 @@
             }
         } catch(e) {}
 
-        // --- Connect: load URL in full-screen iframe ---
+        // --- Connect: load iframe + start local video ---
         function doConnect() {
             try {
                 var url = urlInput.value.trim();
                 if (!url) return;
                 if (url.indexOf('http') !== 0) url = 'http://' + url;
+
+                // Ensure mode=tizen is in the URL so iframe sends video URLs via postMessage
+                if (url.indexOf('mode=') === -1) {
+                    url += (url.indexOf('?') === -1 ? '?' : '&') + 'mode=tizen';
+                }
+
                 statusEl.innerText = 'Loading: ' + url;
                 localStorage.setItem('ds_last_url', url);
                 settingsEl.style.display = 'none';
@@ -109,6 +343,25 @@
                 keyOverlay.style.display = 'block';
                 keyOverlay.focus();
                 isPlaying = true;
+
+                // If we have a previously saved local video, verify it exists then play
+                var savedPath = localStorage.getItem('ds_local_video_path');
+                if (savedPath) {
+                    checkLocalFileExists(function(exists, verifiedPath) {
+                        if (exists) {
+                            console.log('[Boot] Local video verified, playing:', verifiedPath);
+                            playLocalVideo(verifiedPath);
+                            // Restore remote URL for change detection
+                            var savedRemote = localStorage.getItem('ds_remote_video_url');
+                            if (savedRemote) currentRemoteUrl = savedRemote;
+                        } else {
+                            console.warn('[Boot] Local video MISSING — clearing saved state, will re-download');
+                            localStorage.removeItem('ds_local_video_path');
+                            localStorage.removeItem('ds_remote_video_url');
+                            currentRemoteUrl = null;
+                        }
+                    });
+                }
             } catch(e) {
                 statusEl.innerText = 'Error: ' + e.message;
             }
@@ -119,6 +372,10 @@
             isPlaying = false;
             dsFrame.src = 'about:blank';
             dsFrame.style.display = 'none';
+            localVideo.pause();
+            localVideo.src = '';
+            localVideo.style.display = 'none';
+            offlineDot.style.display = 'none';
             keyOverlay.style.display = 'none';
             settingsEl.style.display = 'flex';
             localStorage.removeItem('ds_last_url');
