@@ -21,8 +21,8 @@ const initialState = {
 };
 const fetchBranchData = createAsyncThunk(
   "branchSlice",
-  async ({ page, search, notifications_enabled }) => {
-    let url = `branch/branch/?page=${page}${search ? "&search=" + search : ""}`;
+  async ({ page, search, notifications_enabled, page_size }) => {
+    let url = `branch/branch/?page=${page}${search ? "&search=" + search : ""}${page_size ? "&page_size=" + page_size : ""}`;
     if (notifications_enabled !== undefined && notifications_enabled !== null) {
       url += `&notifications_enabled=${notifications_enabled}`;
     }

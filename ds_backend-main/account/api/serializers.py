@@ -152,7 +152,7 @@ class CompanyUserSerializer(RegistrationSerializer):
                 'fullname': serializers.CharField(label=_('Full name'), required=True),
                 'email': serializers.EmailField(label=_('Email'), required=True),
                 'phone_number': serializers.CharField(label=_('Phone number'), required=True),
-                'password': serializers.CharField(label=_('Password'), required=True, style={'input_type': 'password'}),
+                'password': serializers.CharField(label=_('Password'), required=True, write_only=True, style={'input_type': 'password'}),
                 'is_admin': serializers.BooleanField(label=_('Is admin'), default=False, required=False),
                 'is_master': serializers.BooleanField(label=_('Is master'), read_only=True),
                 "job_title": serializers.CharField(label=_('Job title'), required=False),
@@ -160,12 +160,6 @@ class CompanyUserSerializer(RegistrationSerializer):
                 "day_of_week":serializers.ChoiceField(label=_('First day of week'), choices=WEEK_LIST,required=False),
             })
 
-    def validate_role_group(self, attr):
-        is_admin = self.initial_data.get('is_admin')
-        if not attr and not is_admin:
-            raise ValidationError(_("Role group are required!"))
-        return attr
-        
     def validate_role(self, attr):
         is_admin = self.initial_data.get('is_admin')
         if not attr and not is_admin:

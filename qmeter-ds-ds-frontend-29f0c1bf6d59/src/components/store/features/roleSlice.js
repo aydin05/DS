@@ -25,10 +25,10 @@ const fetchCoreGroups = createAsyncThunk("getCoreSlice", async () => {
 });
 const fetchRoleData = createAsyncThunk(
   "getRoleSlice",
-  async ({ page, search }) => {
+  async ({ page, search, page_size }) => {
     /*fetch role data*/
     const response = await axiosClient(
-      `accounts/role/?page=${page}${search ? "&search=" + search : ""}`,
+      `accounts/role/?page=${page}${search ? "&search=" + search : ""}${page_size ? "&page_size=" + page_size : ""}`,
     );
     response.data.results = response.data.results.map((item, index) => {
       return { ...item, key: index };

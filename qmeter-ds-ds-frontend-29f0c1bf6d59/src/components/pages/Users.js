@@ -139,8 +139,8 @@ export const Users = () => {
   /*side effects*/
   useEffect(() => {
     dispatch(fetchUserData({ page: 1 })); //get user data
-    dispatch(fetchBranchData({ page: 1 })); //get branch data
-    dispatch(fetchRoleData({ page: 1 })); //get role data
+    dispatch(fetchBranchData({ page: 1, page_size: 1000 })); //get all branches for form
+    dispatch(fetchRoleData({ page: 1, page_size: 1000 })); //get all roles for form
     return () => {
       dispatch(resetStatus());
     };

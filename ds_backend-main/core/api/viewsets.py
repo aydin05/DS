@@ -102,8 +102,8 @@ class CompanyUserViewSet(MultiSerializerViewSet):
         user = request.user
         if user.is_master:
             return super().update(request, *args, **kwargs)
-        elif instance and (not instance.is_admin and not instance.is_master and user.is_admin) or (instance.is_admin and user.is_admin and
-                                                                        instance == user):
+        elif instance and ((not instance.is_admin and not instance.is_master and user.is_admin) or (instance.is_admin and user.is_admin and
+                                                                        instance == user)):
             return super().update(request, *args, **kwargs)
         else:
             message = "This action doesn't allowed!"
