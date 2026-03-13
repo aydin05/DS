@@ -1,7 +1,6 @@
 var express = require("express");
 const path = require("path");
 var app = express();
-const helmet = require("helmet");
 
 var port = process.env.PORT || 3333;
 var rootPath = path.normalize(__dirname + "/build");

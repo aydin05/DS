@@ -459,7 +459,13 @@ class CompanySettingsAPIView(APIView):
         return Response({'heartbeat_threshold_seconds': obj.heartbeat_threshold_seconds})
 
     def put(self, request):
-        value = request.data.get('heartbeat_threshold_seconds')
+        try:
+            value = int(request.data.get('heartbeat_threshold_seconds'))
+        except (TypeError, ValueError):
+            return Response(
+                {'error': 'heartbeat_threshold_seconds must be an integer.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         valid = [30, 60, 90, 120, 150, 180, 210, 240, 270, 300]
         if value not in valid:
             return Response(

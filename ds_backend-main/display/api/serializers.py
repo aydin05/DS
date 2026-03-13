@@ -22,7 +22,7 @@ class DisplayTypeSerializer(ModelSerializer):
             old_display_type = old_display_type.exclude(id=self.instance.id)
         if old_display_type.exists():
             raise serializers.ValidationError(_("Display type already exists!"))
-        return super().validate(attr)
+        return attr
 
 
 class DisplaySerializer(ModelSerializer):
@@ -55,7 +55,7 @@ class DisplaySerializer(ModelSerializer):
             old_display = old_display.exclude(id=self.instance.id)
         if old_display.exists():
             raise serializers.ValidationError("Display with this username already exists")
-        return super().validate(value)
+        return value
 
     def validate_name(self,value):
         old_display = Display.objects.filter(name__iexact = value, company = self.context['request'].user.company)
@@ -63,7 +63,7 @@ class DisplaySerializer(ModelSerializer):
             old_display = old_display.exclude(id=self.instance.id)
         if old_display.exists():
             raise serializers.ValidationError("Display with this name already exists")
-        return super().validate(value)
+        return value
 
     def update(self, instance, validated_data):
         # Allow partial updates (e.g. PATCH for notifications_enabled only)
@@ -80,9 +80,9 @@ class DisplaySerializer(ModelSerializer):
             validated_data.update({'display_group': display_group})
             validated_data.update({'schedule': schedule})
         if (display_group and playlist) or (display_group and schedule) or (playlist and schedule):
-            raise serializers.ValidationError("You can't create display group with both playlist and schedule or playlist and display set")
+            raise serializers.ValidationError("You can't assign both playlist and schedule, or both playlist/schedule and display group")
         if not is_partial and not (display_group) and not (playlist) and not (schedule):
-            raise serializers.ValidationError("You must create display group with playlist or schedule or display set")
+            raise serializers.ValidationError("You must assign a playlist, schedule, or display group")
         return super().update(instance, validated_data)
 
 class DisplayGroupSerializer(ModelSerializer):
@@ -90,7 +90,7 @@ class DisplayGroupSerializer(ModelSerializer):
 
     class Meta:
         model = DisplayGroup
-        fields = ("id", 'name', 'description','playlist','schedule','display','display_set')
+        fields = ("id", 'name', 'description','playlist','schedule','display')
 
     # def create(self, validated_data):
     #     validated_data.update({'company': self.context['request'].user.company})
@@ -147,7 +147,7 @@ class DisplayGroupCreateSerializer(ModelSerializer):
         if playlist and schedule:
             raise serializers.ValidationError("You can't create display group with both playlist and schedule")
         if not display_set and not playlist and not schedule:
-            raise serializers.ValidationError("You must create display group with playlist or schedule")
+            raise serializers.ValidationError("You must create display group with playlist, schedule, or displays")
         display_group = super().create(validated_data)
         return display_group
     
@@ -159,7 +159,7 @@ class DisplayGroupCreateSerializer(ModelSerializer):
         validated_data.update({'playlist': playlist})
         validated_data.update({'schedule': schedule})
         if playlist and schedule:
-            raise serializers.ValidationError("You can't create display group with both playlist and schedule or playlist and display set")
+            raise serializers.ValidationError("You can't assign both playlist and schedule to a display group")
         if not playlist and not schedule:
-            raise serializers.ValidationError("You must create display group with playlist or schedule or display set")
+            raise serializers.ValidationError("You must assign a playlist or schedule to the display group")
         return super().update(instance, validated_data)

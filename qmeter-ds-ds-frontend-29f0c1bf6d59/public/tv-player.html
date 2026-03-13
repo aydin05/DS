@@ -50,7 +50,7 @@
         }
 
         // --- Pre-cache video for offline use (full fetch, no Range header) ---
-        var VIDEO_CACHE_NAME = 'ds-openlink-v1';
+        var VIDEO_CACHE_NAME = 'ds-openlink-v2';
         function preCacheVideo(url) {
             if (!('caches' in window)) return;
             caches.open(VIDEO_CACHE_NAME).then(function(cache) {

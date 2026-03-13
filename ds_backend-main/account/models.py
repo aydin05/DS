@@ -67,7 +67,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     def get_avatar(self):
         if self.picture:
             return self.picture.url
-        return 'https://cdt.org/files/2015/10/2015-10-06-FB-person.png'
+        return '/static/images/default_avatar.svg'
 
 
 

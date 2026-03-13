@@ -14,7 +14,7 @@ export const links = {
       to: "/",
       title: "Display types",
       icon: display,
-      permission: "display_tpyes_management",
+      permission: "display_types_management",
     },
     {
       to: "/display-groups",

@@ -230,7 +230,12 @@ if [ "$DEPLOY_BACKEND" = true ]; then
     ssh ${SSH_OPTS} ${SSH_TARGET} "docker exec dsqmeter python manage.py migrate --noinput 2>&1 | tail -10"
     log "Migrations complete"
 
-    # Step 4: Collect static files
+    # Step 4: Update permissions (fixes display_tpyes_management typo)
+    log "Updating permissions..."
+    ssh ${SSH_OPTS} ${SSH_TARGET} "docker exec dsqmeter python manage.py permissions 2>&1 | tail -5"
+    log "Permissions updated"
+
+    # Step 5: Collect static files
     log "Collecting static files..."
     ssh ${SSH_TARGET} "docker exec dsqmeter python manage.py collectstatic --noinput 2>&1 | tail -3"
     log "Static files collected"
@@ -320,7 +325,7 @@ SSSP_EOF
         log "nginx-proxy recreated with tizen-app volume"
     fi
 
-    log "Tizen SSSP app deployed at: http://aydin.technolink.az/app/"
+    log "Tizen SSSP app deployed at: http://${SERVER}/app/"
     log "Files on server:"
     ssh ${SSH_TARGET} "ls -la ${REMOTE_TIZEN_APP}/"
 fi

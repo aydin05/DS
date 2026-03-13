@@ -80,8 +80,8 @@ export const ContentApp = ({ toggle }) => {
           <Route
             path="/"
             element={
-              hasPermission(userPermissions, "display_tpyes_management") ? (
-                <RequirePermission permission="display_tpyes_management">
+              hasPermission(userPermissions, "display_types_management") ? (
+                <RequirePermission permission="display_types_management">
                   {routes.admin.find((r) => r.path === "/").element}
                 </RequirePermission>
               ) : (

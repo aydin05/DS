@@ -23,7 +23,7 @@ class Command(BaseCommand):
             {"name": "Branch", "permissions": ['branch.Branch', 'display.Display'], "code_keyword": "branch_management"},
             {"name": "Playlist", "permissions": ['playlist.Playlist'], "code_keyword": "playlist_management"},
             {"name": "Display Groups","permissions": ['display.DisplayGroup'], "code_keyword": "display_group_management"},
-            {"name": "Display Types","permissions": ['display.DisplayType'], "code_keyword": "display_tpyes_management"},
+            {"name": "Display Types","permissions": ['display.DisplayType'], "code_keyword": "display_types_management"},
             {"name": "Schedules","permissions": ['playlist.Schedule'], "code_keyword": "schedule_management"},
             {"name": "Device Status","permissions": ['core.DeviceLog'], "code_keyword": "device_status_management"},
             {"name": "Settings","permissions": ['notification.EmailConfig', 'notification.EmailTemplate', 'notification.RecipientList', 'notification.Recipient', 'notification.NotificationSetting'], "code_keyword": "settings_management"},
@@ -32,7 +32,7 @@ class Command(BaseCommand):
             name = role.get('name')
             code = role.get('code_keyword')
             group, _ = Group.objects.get_or_create(name=name)
-            GroupCustom.objects.get_or_create(group=group, code=code)
+            GroupCustom.objects.update_or_create(group=group, defaults={'code': code})
             permissions = role.get('permissions')
             for permission in permissions:
                 app_label, model = permission.split(".")
@@ -43,6 +43,3 @@ class Command(BaseCommand):
         print('Migration completed successfully')
         print("Migration statistics")
         print('-------------------')
-
-
-select={'renamed_value': 'cryptic_value_name'}

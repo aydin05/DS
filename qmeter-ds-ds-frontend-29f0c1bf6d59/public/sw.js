@@ -7,7 +7,7 @@
  *   - API calls:               network-only (OpenLink.js handles fallback via localStorage)
  */
 
-const CACHE_NAME = "ds-openlink-v1";
+const CACHE_NAME = "ds-openlink-v2";
 
 // Assets that make up the app shell — populated on install
 const APP_SHELL = ["/", "/tv-player.html"];

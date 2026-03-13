@@ -48,7 +48,7 @@ export const routes = {
     {
       path: "/",
       element: wrap(<DisplayTypes />),
-      permission: "display_tpyes_management",
+      permission: "display_types_management",
     },
     {
       path: "/display-groups",
