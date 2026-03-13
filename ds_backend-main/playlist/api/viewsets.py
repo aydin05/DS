@@ -129,6 +129,9 @@ class PlaylistViewSet(MultiSerializerViewSet):
                         height=dt.height,
                     )
 
+        # Auto-trigger merged video so duplicated playlist is immediately playable
+        _trigger_merge_after_publish(new_playlist, request)
+
         serializer = PlaylistSerializer(new_playlist, context={'request': request})
         return Response(serializer.data)
 
@@ -214,6 +217,9 @@ class SlideApiView(APIView):
                     )
                     continue
                 return Response(serializer.errors, status=400)
+
+            # Auto-trigger merge so playlist is immediately playable
+            _trigger_merge_after_publish(playlist, request)
 
         else:
             if not display_type_id or not display_type_obj:

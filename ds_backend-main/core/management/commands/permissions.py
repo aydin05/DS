@@ -20,7 +20,7 @@ class Command(BaseCommand):
         print('Creating started .............')
         roles = [
             {"name": "User management", "permissions": ['account.User', 'account.RoleGroup'], "code_keyword": "user_management"},
-            {"name": "Branch", "permissions": ['branch.Branch', 'display.Display'], "code_keyword": "branch_management"},
+            {"name": "Branch", "permissions": ['branch.Branch', 'display.Display', 'display.DisplayType:view', 'display.DisplayGroup:view', 'playlist.Playlist:view', 'playlist.Schedule:view', 'core.CompanyFile:view'], "code_keyword": "branch_management"},
             {"name": "Playlist", "permissions": ['playlist.Playlist', 'playlist.Slide', 'playlist.SlideItem', 'playlist.SlideItemDisplayType', 'core.CompanyFile'], "code_keyword": "playlist_management"},
             {"name": "Display Groups","permissions": ['display.DisplayGroup'], "code_keyword": "display_group_management"},
             {"name": "Display Types","permissions": ['display.DisplayType'], "code_keyword": "display_types_management"},
@@ -35,9 +35,16 @@ class Command(BaseCommand):
             GroupCustom.objects.update_or_create(group=group, defaults={'code': code})
             permissions = role.get('permissions')
             for permission in permissions:
+                action_filter = None
+                if ':' in permission:
+                    permission, action_filter = permission.split(':')
                 app_label, model = permission.split(".")
                 my_model = apps.get_model(app_label, model)
-                permission_obj = Permission.objects.filter(content_type=(ContentType.objects.get_for_model(my_model)))
+                ct = ContentType.objects.get_for_model(my_model)
+                if action_filter:
+                    permission_obj = Permission.objects.filter(content_type=ct, codename__startswith=f'{action_filter}_')
+                else:
+                    permission_obj = Permission.objects.filter(content_type=ct)
                 for per in permission_obj:
                     group.permissions.add(per)
         print('Migration completed successfully')
