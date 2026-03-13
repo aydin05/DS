@@ -21,10 +21,10 @@ class Command(BaseCommand):
         roles = [
             {"name": "User management", "permissions": ['account.User', 'account.RoleGroup'], "code_keyword": "user_management"},
             {"name": "Branch", "permissions": ['branch.Branch', 'display.Display'], "code_keyword": "branch_management"},
-            {"name": "Playlist", "permissions": ['playlist.Playlist'], "code_keyword": "playlist_management"},
+            {"name": "Playlist", "permissions": ['playlist.Playlist', 'playlist.Slide', 'playlist.SlideItem', 'playlist.SlideItemDisplayType', 'core.CompanyFile'], "code_keyword": "playlist_management"},
             {"name": "Display Groups","permissions": ['display.DisplayGroup'], "code_keyword": "display_group_management"},
             {"name": "Display Types","permissions": ['display.DisplayType'], "code_keyword": "display_types_management"},
-            {"name": "Schedules","permissions": ['playlist.Schedule'], "code_keyword": "schedule_management"},
+            {"name": "Schedules","permissions": ['playlist.Schedule', 'playlist.SchedulePlaylist'], "code_keyword": "schedule_management"},
             {"name": "Device Status","permissions": ['core.DeviceLog'], "code_keyword": "device_status_management"},
             {"name": "Settings","permissions": ['notification.EmailConfig', 'notification.EmailTemplate', 'notification.RecipientList', 'notification.Recipient', 'notification.NotificationSetting'], "code_keyword": "settings_management"},
         ]
