@@ -10,7 +10,7 @@ from account.models import Company, RoleGroup
 from branch.models import Branch
 from django_countries.fields import CountryField
 from django.contrib.auth.hashers import make_password
-from utils.choices import TIMEZONE_LIST
+from utils.choices import TIMEZONE_LIST, WEEK_LIST
 from django.core import validators
 from account.tools.validators import url_field_validator
 
