@@ -8,6 +8,7 @@ from knox.models import AuthToken as KnoxAuthToken
 from .utils import default_create_token
 from account.models import Company, RoleGroup
 from branch.models import Branch
+from django_countries.fields import CountryField
 from django.contrib.auth.hashers import make_password
 from utils.choices import TIMEZONE_LIST
 from django.core import validators
