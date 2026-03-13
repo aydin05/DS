@@ -11,17 +11,17 @@ class PlaylistPermission(CustomAccessPermission):
 class SchedulePermission(CustomAccessPermission):
     message = _('You do not have permission to manage schedules.')
     permission = 'schedule'
-    permission_model = 'schedule'
+    permission_model = 'playlist'
 
 
 class SchedulePlaylistPermission(CustomAccessPermission):
     message = _('You do not have permission to manage schedule playlists.')
-    permission = 'schedule_playlist'
-    permission_model = 'schedule_playlist'
+    permission = 'scheduleplaylist'
+    permission_model = 'playlist'
 
 
 class SlidePermission(CustomAccessPermission):
     message = _('You do not have permission to manage slides.')
     permission = 'slide'
-    permission_model = 'slide'
+    permission_model = 'playlist'
 
