@@ -158,6 +158,11 @@ REST_KNOX = {
 
 AUTH_USER_MODEL = "account.User"
 
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'account.backends.RoleGroupBackend',
+]
+
 # Password validation
 # https://docs.djangoproject.com/en/4.0/ref/settings/#auth-password-validators
 
