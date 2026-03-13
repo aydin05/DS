@@ -1,7 +1,0 @@
-location /static/ {
-    alias /dsqmeter/static/;
-}
-
-location /media/ {
-    alias /dsqmeter/media/;
-}

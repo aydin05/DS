@@ -3,7 +3,6 @@ import displayGroup from "../../assets/images/display-group.svg";
 import branch from "../../assets/images/branch.svg";
 import schedules from "../../assets/images/calendar.svg";
 import user from "../../assets/images/user.svg";
-// import myCompany from "../../assets/images/company.svg";
 import playLists from "../../assets/images/playlists.svg";
 import deviceStatus from "../../assets/images/device-status.svg";
 import settings from "../../assets/images/settings.svg";
@@ -63,11 +62,6 @@ export const links = {
       ],
       permission: "user_management",
     },
-    // {
-    //     to: "/my-company",
-    //     title: "My company",
-    //     icon: myCompany
-    // },
     {
       to: "/settings",
       title: "Settings",
