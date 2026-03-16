@@ -36,6 +36,7 @@ ALLOWED_HOSTS = os.environ.get('VIRTUAL_HOST', 'localhost').split(',')
 # generates https:// URLs for media files (fixes Mixed Content errors)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
+FORCE_SCRIPT_NAME = '/newds'
 
 
 # Application definition

@@ -5,6 +5,13 @@ import { logOut, networkError } from "./components/store/features/loginSlice";
 
 axiosClient.interceptors.request.use(
   (config) => {
+    // Ensure trailing slash to avoid Django APPEND_SLASH redirects
+    if (config.url && !config.url.endsWith("/") && !config.url.includes("?")) {
+      config.url += "/";
+    } else if (config.url && config.url.includes("?") && !config.url.split("?")[0].endsWith("/")) {
+      const [path, query] = config.url.split("?");
+      config.url = path + "/?" + query;
+    }
     const qToken = Cookies.get("q-token");
     if (qToken) {
       config.headers.Authorization = "Token " + qToken;
