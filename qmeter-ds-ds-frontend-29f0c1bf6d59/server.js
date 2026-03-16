@@ -23,13 +23,13 @@ app.use(function (req, res, next) {
 // frameguard disabled — frontend is embedded in iframe by Tizen display app
 
 // Hashed assets → cache forever (filename changes on rebuild)
-app.use("/assets", express.static(path.join(rootPath, "assets"), {
+app.use("/newds/assets", express.static(path.join(rootPath, "assets"), {
   maxAge: "1y",
   immutable: true,
 }));
 
 // Everything else (including index.html) → no cache
-app.use(express.static(rootPath, {
+app.use("/newds", express.static(rootPath, {
   maxAge: 0,
   setHeaders: (res, filePath) => {
     if (filePath.endsWith('.html')) {
@@ -41,13 +41,18 @@ app.use(express.static(rootPath, {
 }));
 
 // Missing assets after rebuild → 404 (not index.html)
-app.all("/assets/*", (req, res) => {
+app.all("/newds/assets/*", (req, res) => {
   res.status(404).end();
 });
 
-// SPA fallback — all other routes get index.html
-app.get("*", (req, res) => {
+// SPA fallback — all /newds routes get index.html
+app.get("/newds/*", (req, res) => {
   res.set("Cache-Control", "no-cache, no-store, must-revalidate");
   res.sendFile(path.resolve("build", "index.html"));
+});
+
+// Redirect /newds to /newds/
+app.get("/newds", (req, res) => {
+  res.redirect(301, "/newds/");
 });
 app.listen(port);

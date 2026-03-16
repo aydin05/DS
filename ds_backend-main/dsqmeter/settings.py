@@ -76,6 +76,8 @@ ROOT_URLCONF = 'dsqmeter.urls'
 
 CORS_ORIGIN_ALLOW_ALL = False
 CORS_ALLOWED_ORIGINS = [
+    'https://qmeterds.kapitalbank.az',
+    'http://qmeterds.kapitalbank.az',
     'https://10.0.4.132',
     'http://10.0.4.132',
 ]

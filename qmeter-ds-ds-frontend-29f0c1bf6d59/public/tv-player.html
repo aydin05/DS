@@ -42,7 +42,7 @@
     <script>
         // --- Register Service Worker for offline caching ---
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js').then(function(reg) {
+            navigator.serviceWorker.register('/newds/sw.js').then(function(reg) {
                 console.log('[SW] Registered, scope:', reg.scope);
             }).catch(function(err) {
                 console.warn('[SW] Registration failed:', err.message);
@@ -89,7 +89,7 @@
         }
 
         // --- Configuration ---
-        var API_BASE = '/api/v1/';
+        var API_BASE = '/newds/api/v1/';
         var FETCH_INTERVAL = 30000;
         var HEARTBEAT_INTERVAL = 30000;
         // Detect source: Tizen TV vs regular browser (open-link on PC)
