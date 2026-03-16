@@ -118,7 +118,7 @@ if [ "$DEPLOY_TIZEN" = true ]; then
     <size>${WGT_SIZE}</size>
     <widgetname>${WGT_NAME}</widgetname>
 </widget>
-SSDP_EOF
+SSSP_EOF
     log "Generated sssp_config.xml (ver=${SSSP_VER})"
 
     # Copy files to serve directory
