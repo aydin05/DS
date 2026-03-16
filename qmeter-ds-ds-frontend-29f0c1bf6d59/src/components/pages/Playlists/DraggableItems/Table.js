@@ -11,7 +11,7 @@ import {
   setTableCellValue,
   updateTableSizes,
 } from "../../../store/features/playListInnerSlice";
-import { fromEventPattern } from "rxjs";
+
 
 const Table = (props) => {
   const { table, size } = props;
