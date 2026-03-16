@@ -1,6 +1,7 @@
 
 services:
-    postgres:
+    postgres-new:
+        container_name: postgres-new
         image: postgres:16
         restart: always
         volumes:
@@ -8,6 +9,8 @@ services:
         ports:
             - "5433:5432"
         env_file: .env
+        networks:
+            - internal
         healthcheck:
             test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
             interval: 10s
@@ -38,12 +41,16 @@ services:
             - .:/code/
             - ./static/:/code/static
             - ./media/:/code/media
+        networks:
+            - internal
+            - nginx-proxy
         depends_on:
-            postgres:
+            postgres-new:
                 condition: service_healthy
         env_file: .env
 
 networks:
-    default:
-        name: nginx-proxy
+    internal:
+        driver: bridge
+    nginx-proxy:
         external: true
