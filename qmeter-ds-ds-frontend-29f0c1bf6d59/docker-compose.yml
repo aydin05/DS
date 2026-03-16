@@ -2,7 +2,7 @@ services:
   web:
     build:
       context: .
-      dockerfile: Dockerfile.serve
+      dockerfile: Dockerfile.fullbuild
     container_name: ds-front-new
     restart: "always"
     env_file: .env

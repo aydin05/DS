@@ -1,0 +1,27 @@
+# Stage 1: Build the frontend
+FROM node:18 AS builder
+WORKDIR /app
+
+# Install dependencies for custom ckeditor first
+COPY custom-ckeditor5/package.json custom-ckeditor5/package-lock.json ./custom-ckeditor5/
+RUN cd custom-ckeditor5 && npm install
+
+# Copy ckeditor source and build
+COPY custom-ckeditor5/ ./custom-ckeditor5/
+RUN cd custom-ckeditor5 && npm run build
+
+# Install main app dependencies
+COPY package.json package-lock.json ./
+RUN npm install
+
+# Copy source and build
+COPY . .
+RUN npm run build
+
+# Stage 2: Serve with Express
+FROM node:18-slim
+WORKDIR /app
+RUN npm install express@4
+COPY server.js ./
+COPY --from=builder /app/build ./build
+CMD ["node", "server.js"]
