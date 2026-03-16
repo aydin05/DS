@@ -76,10 +76,8 @@ ROOT_URLCONF = 'dsqmeter.urls'
 
 CORS_ORIGIN_ALLOW_ALL = False
 CORS_ALLOWED_ORIGINS = [
-    'https://aydin.technolink.az',
-    'http://aydin.technolink.az',
-    'https://116.203.187.99',
-    'http://116.203.187.99',
+    'https://10.0.4.132',
+    'http://10.0.4.132',
 ]
 if DEBUG:
     CORS_ALLOWED_ORIGINS += [

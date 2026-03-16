@@ -22,7 +22,7 @@ services:
         restart: "always"
         command: ["supervisord", "-c", "/code/supervisord.conf"]
         environment:
-            - VIRTUAL_HOST=aydin.technolink.az,116.203.187.99,localhost
+            - VIRTUAL_HOST=10.0.4.132,localhost
             - VIRTUAL_PROTO=http
             - CERT_NAME=kapitalbank_az
             - VIRTUAL_PORT=8000

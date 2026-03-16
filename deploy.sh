@@ -3,10 +3,10 @@ set -e
 
 # ============================================
 # Deploy Script for DS Backend & Frontend
-# Server: 116.203.187.99
+# Server: 10.0.4.132
 # ============================================
 
-SERVER="116.203.187.99"
+SERVER="10.0.4.132"
 SSH_USER="root"
 SSH_TARGET="${SSH_USER}@${SERVER}"
 SSH_OPTS="-o ServerAliveInterval=30 -o ServerAliveCountMax=10"

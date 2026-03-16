@@ -7,7 +7,7 @@ services:
     restart: "always"
     env_file: .env
     environment:
-      - VIRTUAL_HOST=aydin.technolink.az,116.203.187.99
+      - VIRTUAL_HOST=10.0.4.132
       - VIRTUAL_PORT=3333
       - PORT=3333
       - LANG=en_US.UTF-8
