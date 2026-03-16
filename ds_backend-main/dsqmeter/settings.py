@@ -203,7 +203,7 @@ EMAIL_PORT = 587
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
 
-STATIC_URL = '/static/'
+STATIC_URL = '/newds/static/'
 if PROD:
     STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 else:
@@ -212,7 +212,7 @@ else:
         BASE_DIR / 'static'
     ]
 
-MEDIA_URL = '/media/'
+MEDIA_URL = '/newds/media/'
 
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
