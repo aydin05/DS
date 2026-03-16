@@ -10,7 +10,7 @@
 const CACHE_NAME = "ds-openlink-v2";
 
 // Assets that make up the app shell — populated on install
-const APP_SHELL = ["/", "/tv-player.html"];
+const APP_SHELL = ["/newds/", "/newds/tv-player.html"];
 
 // ── Install: pre-cache app shell ──
 self.addEventListener("install", (event) => {

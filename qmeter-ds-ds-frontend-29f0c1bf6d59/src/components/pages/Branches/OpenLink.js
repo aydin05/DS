@@ -38,7 +38,7 @@ function flushLogs(username) {
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker
-      .register("/sw.js")
+      .register("/newds/sw.js")
       .then((reg) => {
         console.log("[SW] Registered, scope:", reg.scope);
         deviceLog("INFO", "Service Worker registered", { scope: reg.scope });

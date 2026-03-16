@@ -66,18 +66,45 @@ def _download_to_tmp(url, tmp_dir):
         counter += 1
         local_path = f"{base}_{counter}{ext}"
 
+    def _resolve_local_media(path):
+        """Try to resolve a URL/path to a local file under MEDIA_ROOT."""
+        # Strip MEDIA_URL prefix (e.g. /newds/media/) to get relative path
+        media_url = settings.MEDIA_URL
+        if path.startswith(media_url):
+            relative = path[len(media_url):]
+            candidate = os.path.join(settings.MEDIA_ROOT, relative)
+            if os.path.isfile(candidate):
+                return candidate
+        # Strip old /media/ prefix (backward compat)
+        if path.startswith("/media/"):
+            relative = path[len("/media/"):]
+            candidate = os.path.join(settings.MEDIA_ROOT, relative)
+            if os.path.isfile(candidate):
+                return candidate
+        # Try raw path relative to MEDIA_ROOT
+        candidate = os.path.join(settings.MEDIA_ROOT, path.lstrip("/"))
+        if os.path.isfile(candidate):
+            return candidate
+        return None
+
     try:
         if url.startswith("http://") or url.startswith("https://"):
-            response = urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT_SECONDS)
-            with open(local_path, 'wb') as f:
-                shutil.copyfileobj(response, f)
+            # Try local resolution first (avoid network round-trip inside Docker)
+            from urllib.parse import urlparse
+            parsed_path = urlparse(url).path
+            local = _resolve_local_media(parsed_path)
+            if local:
+                shutil.copy2(local, local_path)
+            else:
+                response = urllib.request.urlopen(url, timeout=DOWNLOAD_TIMEOUT_SECONDS)
+                with open(local_path, 'wb') as f:
+                    shutil.copyfileobj(response, f)
         elif os.path.isfile(url):
             shutil.copy2(url, local_path)
         else:
-            # Try as relative to MEDIA_ROOT
-            media_path = os.path.join(settings.MEDIA_ROOT, url.lstrip("/"))
-            if os.path.isfile(media_path):
-                shutil.copy2(media_path, local_path)
+            local = _resolve_local_media(url)
+            if local:
+                shutil.copy2(local, local_path)
             else:
                 logger.warning("Cannot resolve media file: %s", url)
                 return None

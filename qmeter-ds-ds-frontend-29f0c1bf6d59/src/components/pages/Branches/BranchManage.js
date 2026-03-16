@@ -127,7 +127,7 @@ const BranchManage = (props) => {
   };
 
   const open = (username) => {
-    window.open(`/branches/open-link/${username}`, "_blank");
+    window.open(`/newds/branches/open-link/${username}`, "_blank");
   };
 
   const finish = (values) => {
